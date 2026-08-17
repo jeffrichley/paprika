@@ -35,6 +35,10 @@ Run `gh issue view <number> --comments`.
 
 ## Wayfinding operations
 
+> **Verified on this repo:** both native **sub-issues** and native **issue dependencies** are
+> enabled and working. Use the API paths below directly — the task-list and `Blocked by:` body
+> fallbacks described further down are not needed here.
+
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
 
 - **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
