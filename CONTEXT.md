@@ -51,11 +51,15 @@ _Avoid_: Preview, dry run, staged
 ### Nutrition
 
 **Provenance**:
-The labelled origin and confidence of a nutrition number — which tier of source it came from. Mandatory on every number; a total inherits the provenance of its worst ingredient.
+The labelled origin of a nutrition number and how far it can be trusted — which tier it came from. Derived only from structural evidence we can check ourselves, never from a matcher's self-reported score. Mandatory on every number; a total inherits the provenance of its worst ingredient.
 _Avoid_: Source, confidence, quality
 
+**Tier**:
+One of the four grades a provenance can take: Measured, Derived, Estimated, Unquantified. A tier decides whether a number renders as a plain value, a range, or not at all. Internal vocabulary — the tier itself is never shown to her.
+_Avoid_: Confidence score, accuracy rating, grade
+
 **Rollup**:
-Nutrition totalled across a plan rather than a single recipe. Computed at plan time, never journaled.
+Nutrition totalled across a week rather than a single recipe. Computed on request, never journaled and never volunteered alongside a plan.
 _Avoid_: Summary, aggregate, daily total
 
 ### Who acts
