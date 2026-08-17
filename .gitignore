@@ -51,6 +51,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Claude Code local overrides
+.claude/worktrees/
 .claude/settings.local.json
 
 # Logs & scratch
