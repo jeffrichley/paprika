@@ -21,6 +21,10 @@ _Avoid_: Stock, inventory, supplies
 The standing household facts a plan is drawn against — allergies, dislikes, household size, and targets. Hers to state, ours to remember.
 _Avoid_: Preferences, settings, config
 
+**Mirror**:
+Our local copy of what Paprika stores. Never authoritative and never written to directly — Paprika is the truth for everything it holds, so a mirror is only ever fresh or stale, never in conflict. Refreshed, or discarded and rebuilt.
+_Avoid_: Cache, local database, sync state
+
 ### Planning
 
 **Plan**:
