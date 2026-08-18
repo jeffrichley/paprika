@@ -18,8 +18,12 @@ What she currently has on hand. The thing a grocery list is subtracted against, 
 _Avoid_: Stock, inventory, supplies
 
 **Profile**:
-The standing household facts a plan is drawn against — allergies, dislikes, household size, and targets. Hers to state, ours to remember.
+The standing household facts a plan is drawn against — allergies, targets, and the people. Hers to state, ours to remember; never inferred from what she does.
 _Avoid_: Preferences, settings, config
+
+**Person**:
+Someone the household cooks for, with their own dislikes and loves. Allergies are deliberately *not* per-person: they are household-wide, because the cook only gets one pot.
+_Avoid_: User, member, eater
 
 **Mirror**:
 Our local copy of what Paprika stores. Never authoritative and never written to directly — Paprika is the truth for everything it holds, so a mirror is only ever fresh or stale, never in conflict. Refreshed, or discarded and rebuilt.
@@ -71,6 +75,6 @@ _Avoid_: Summary, aggregate, daily total
 **Skill**:
 A capability she invokes, by name or in plain English. Skills are the only things that write.
 
-**Advisory agent**:
-The nutritionist or the chef — consulted for judgement over numbers a skill already computed. Advisory agents never mutate data and never compute their own figures.
-_Avoid_: Assistant, expert, advisor
+**Cooking judgement**:
+Knowing what goes with what, what a household will actually eat, and what makes a week work as a week. Shared across the skills that need it rather than owned by one, and never a thing she summons by name. Replaces the "nutritionist" and "chef" agents, which the plugin does not have.
+_Avoid_: The chef, advisory agent, assistant, expert
