@@ -18,7 +18,7 @@ What she currently has on hand. The thing a grocery list is subtracted against, 
 _Avoid_: Stock, inventory, supplies
 
 **Profile**:
-The standing household facts a plan is drawn against — allergies, targets, and the people. Hers to state, ours to remember; never inferred from what she does.
+The standing household facts a plan is drawn against — allergies, targets, the people, and the household's *rhythm*: which nights are fast, which are slow, who is away. Hers to state, ours to remember. Never inferred silently; the plugin may notice and ask, and writes only on her yes.
 _Avoid_: Preferences, settings, config
 
 **Person**:
@@ -40,12 +40,13 @@ One `(date, meal type)` pair — the addressable position a plan fills. Breakfas
 _Avoid_: Entry, cell, spot
 
 **Swap**:
-Changing what occupies a slot in a plan that already exists, as opposed to drafting a plan from empty.
+Changing what occupies a slot, whether or not the plan has been saved yet. Correcting a draft and changing a saved plan are the same gesture to her; the distinction that matters is *Draft* versus saved, which is about whether her data has moved.
+_Avoid_: Replace, reschedule, edit
 
 ### How work enters and lands
 
 **Intake path**:
-One of the ways a recipe enters the library — a URL, dictation or paste, or files. A property of how the recipe arrived, distinct from what it becomes.
+One of the ways a recipe enters the library — a URL, dictation or paste, files, or *invented*. A property of how the recipe arrived, distinct from what it becomes. Invented is the only path whose source is us, so it is the only one that marks the saved recipe permanently and the only one that must render the recipe whole before asking to save it.
 _Avoid_: Import method, source type
 
 **Reviewable batch**:
