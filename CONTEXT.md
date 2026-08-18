@@ -14,7 +14,7 @@ _Avoid_: Collection, cookbook, recipe book
 One saved dish: ingredients, method, and metadata, identified by a `uid`. Always read and written as a whole object; a recipe is never partially constructed.
 
 **Pantry**:
-What she currently has on hand. The thing a grocery list is subtracted against, and never inferred from what was planned.
+What she currently has on hand, and how long ago that was last confirmed — the age is part of the fact, not metadata about it. The thing a grocery list is subtracted against, and never inferred from what was planned. Evidence may add to it or confirm it; **only she can say something is gone**, because not seeing a thing is not the same as it not being there.
 _Avoid_: Stock, inventory, supplies
 
 **Profile**:
@@ -50,7 +50,7 @@ One of the ways a recipe enters the library — a URL, dictation or paste, files
 _Avoid_: Import method, source type
 
 **Reviewable batch**:
-The unit a single confirmation is allowed to cover: exactly what she was just shown, never more. The floor under every write.
+The unit a single confirmation is allowed to cover: exactly what she was just shown, never more. The floor under every write. The measure is *shown*, not *few* — eighty ingredient names she can scan are one batch; forty recipes she would have to read are not.
 _Avoid_: Bulk operation, batch job
 
 **Draft**:
