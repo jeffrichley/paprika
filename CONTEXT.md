@@ -7,7 +7,7 @@ A Claude Code plugin that manages a Paprika 3 recipe library and plans meals fro
 ### Her data
 
 **Library**:
-The full set of recipes saved in her Paprika account. Our word, not hers — never surface it in a skill name or prompt.
+The full set of recipes saved in her Paprika account. Our word, not hers — never surface it in a skill name or prompt. Small enough to be read whole rather than searched — which is what makes finding something a matter of judgement rather than of matching.
 _Avoid_: Collection, cookbook, recipe book
 
 **Recipe**:
@@ -30,7 +30,7 @@ Someone the household cooks for, with their own dislikes and loves. Allergies ar
 _Avoid_: User, member, eater
 
 **Mirror**:
-Our local copy of what Paprika stores. Never authoritative and never written to directly — Paprika is the truth for everything it holds, so a mirror is only ever fresh or stale, never in conflict. Refreshed, or discarded and rebuilt.
+Our local copy of what Paprika stores. Never authoritative and never written to directly — Paprika is the truth for everything it holds, so a mirror is only ever fresh or stale, never in conflict. Refreshed, or discarded and rebuilt. Which of the two it is, is established by **asking** rather than by a clock: a mirror that merely looks recent can still be missing something she deleted.
 _Avoid_: Cache, local database, sync state
 
 ### Planning
