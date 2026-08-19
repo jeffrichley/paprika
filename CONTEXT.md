@@ -61,8 +61,16 @@ _Avoid_: Bulk operation, batch job
 The unit of bulk review — the recipes sharing one proposed destination, shown whole, corrected if she wants, covered by a single yes. A group is a *Draft* until she answers it, and lands as one *Run*. How a several-hundred-recipe job is made reviewable without becoming forty screens.
 _Avoid_: Batch, chunk, page
 
+**Walk**:
+A review that spans more than one screen — nine cleanup groups, forty files to import. Its length is stated before it begins, it is ordered so that stopping a third of the way through still leaves her ahead, and it can be stopped and resumed. A walk *contains* Runs rather than being one, which is why the phone is notified when a walk reaches a resting point and not once per Run.
+_Avoid_: Session, job, queue, wizard
+
+**Gap**:
+A hole in an extracted recipe where the source was unreadable, named **in place in the recipe's own text** rather than recorded as metadata about it. A gap is content: it syncs to her phone, which is what she is holding next to the open book — the only moment it can be filled. Distinct from an empty field, which means the source never said.
+_Avoid_: Error, missing data, TODO, low confidence
+
 **Draft**:
-Proposed changes shown for correction before any confirmation is asked. A draft has not touched her data.
+Proposed changes shown for correction before any confirmation is asked. A draft has not touched her data — and may outlive the conversation that made it, since a long *Walk*'s drafts are written to disk so that stopping costs nothing.
 _Avoid_: Preview, dry run, staged
 
 **Run**:
@@ -103,3 +111,7 @@ _Avoid_: The chef, advisory agent, assistant, expert
 **Scan**:
 The read-only pass over the whole library that clusters recipes and finds duplicates, and the plugin's only agent. It proposes and never writes — it holds no write tool — so everything it produces is a Draft that a skill turns into a Run on her yes.
 _Avoid_: The cleanup agent, the organiser, the bot
+
+**Reader**:
+The read-only pass over any file the plugin opens for itself — the second and last agent. It holds no write tool, and what it opens never enters the conversation: it returns fields and named *Gaps*, never an image and never a score. What she puts in front of us directly is not its business; it is already here.
+_Avoid_: The importer, the parser, OCR, the extractor

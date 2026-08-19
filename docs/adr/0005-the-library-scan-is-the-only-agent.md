@@ -10,7 +10,11 @@ The read-only property is stated in the agent's own definition rather than left 
 
 ## Consequences
 
-- **`agents/` holds exactly one file.** A reader who finds it after reading ADR 0003 is looking at that ADR's explicitly-deferred call, resolved — not at a contradiction.
+- ~~**`agents/` holds exactly one file.**~~ **Superseded by [ADR 0007](0007-the-plugin-never-opens-a-file-into-the-session.md):**
+  `agents/` holds two — the Scan and the **Reader**, which reads any file the plugin opens for itself. The
+  title of this ADR is narrower than it was; everything under it still holds, and now applies to both. A
+  reader arriving from ADR 0003 is still looking at that ADR's explicitly-deferred call, resolved — the
+  count changed, the rule did not.
 - **The cooking-judgement reference travels with it.** Proposing that a dish is a weeknight thing is cooking judgement, and an agent reasoning about her food without that reference would invent its own taxonomy. This is the one place where "an agent is a place" is not a problem, because the place is exactly where the judgement is needed.
 - **The health report does not use the agent.** Counting recipes with no category, recipes filed only at a root, empty categories, and missing photos is arithmetic over the mirror. The agent is dispatched only once she picks a job, so the report is instant, deterministic, free, and cannot be wrong in an interesting way.
 - **A no is not a failure to route around.** Because the agent only proposes, a rejected cluster costs one dispatch and nothing else — which is what makes it safe to drop a rejected group and never re-propose it.
