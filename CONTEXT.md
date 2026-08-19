@@ -17,6 +17,10 @@ One saved dish: ingredients, method, and metadata, identified by a `uid`. Always
 What she currently has on hand, and how long ago that was last confirmed — the age is part of the fact, not metadata about it. The thing a grocery list is subtracted against, and never inferred from what was planned. Evidence may add to it or confirm it; **only she can say something is gone**, because not seeing a thing is not the same as it not being there.
 _Avoid_: Stock, inventory, supplies
 
+**Filed loosely**:
+A recipe carrying only a root category when the recipes it belongs with live at a leaf. Distinct from *uncategorised*, which means no categories at all. The distinction matters because filing loosely is often deliberate, so the two are never treated as one problem.
+_Avoid_: Badly categorised, misfiled, orphaned
+
 **Profile**:
 The standing household facts a plan is drawn against — allergies, targets, the people, and the household's *rhythm*: which nights are fast, which are slow, who is away. Hers to state, ours to remember. Never inferred silently; the plugin may notice and ask, and writes only on her yes.
 _Avoid_: Preferences, settings, config
@@ -52,6 +56,10 @@ _Avoid_: Import method, source type
 **Reviewable batch**:
 The unit a single confirmation is allowed to cover: exactly what she was just shown, never more. The floor under every write. The measure is *shown*, not *few* — eighty ingredient names she can scan are one batch; forty recipes she would have to read are not.
 _Avoid_: Bulk operation, batch job
+
+**Group**:
+The unit of bulk review — the recipes sharing one proposed destination, shown whole, corrected if she wants, covered by a single yes. A group is a *Draft* until she answers it, and lands as one *Run*. How a several-hundred-recipe job is made reviewable without becoming forty screens.
+_Avoid_: Batch, chunk, page
 
 **Draft**:
 Proposed changes shown for correction before any confirmation is asked. A draft has not touched her data.
@@ -89,5 +97,9 @@ _Avoid_: Summary, aggregate, daily total
 A capability she invokes, by name or in plain English. Skills are the only things that write.
 
 **Cooking judgement**:
-Knowing what goes with what, what a household will actually eat, and what makes a week work as a week. Shared across the skills that need it rather than owned by one, and never a thing she summons by name. Replaces the "nutritionist" and "chef" agents, which the plugin does not have.
+Knowing what goes with what, what a household will actually eat, and what makes a week work as a week. Shared across the skills that need it — and the one agent — rather than owned by any of them, and never a thing she summons by name. Replaces the "nutritionist" and "chef" agents, which the plugin does not have.
 _Avoid_: The chef, advisory agent, assistant, expert
+
+**Scan**:
+The read-only pass over the whole library that clusters recipes and finds duplicates, and the plugin's only agent. It proposes and never writes — it holds no write tool — so everything it produces is a Draft that a skill turns into a Run on her yes.
+_Avoid_: The cleanup agent, the organiser, the bot
