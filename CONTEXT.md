@@ -57,6 +57,18 @@ _Avoid_: Bulk operation, batch job
 Proposed changes shown for correction before any confirmation is asked. A draft has not touched her data.
 _Avoid_: Preview, dry run, staged
 
+**Run**:
+One write operation from start to finish — a single edit or three hundred re-filings. The unit that gets verified, notified, and undone. A run that stops partway is still one run, and is reported as one.
+_Avoid_: Batch, job, transaction
+
+**Pre-image**:
+The whole object exactly as it stood immediately before we wrote to it, captured on every write. Whole, never a diff — only a whole object can be restored, because every write is a full-object write. What an undo replays.
+_Avoid_: Backup, snapshot diff, version
+
+**Trashed**:
+What she means by deleting a recipe: it goes to the Paprika app's own trash, where she can see and restore it herself. Distinct from *removed*, which takes an object out of Paprika altogether and leaves her no recovery path but ours. Trashed recipes still sync — her other devices have to render their own trash — so the mirror filters them rather than expecting them to be gone.
+_Avoid_: Deleted, archived, hidden
+
 ### Nutrition
 
 **Provenance**:
