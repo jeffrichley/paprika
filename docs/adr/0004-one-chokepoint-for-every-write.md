@@ -1,0 +1,23 @@
+# One chokepoint for every write, and it never accepts a payload
+
+Every write to Paprika is a **full-object POST**: any field absent from the payload is destroyed on the server and propagated to her phone. There is no partial update, and there is no concurrency control — measured against a live account, a write presenting a **stale `hash` is accepted**, and the stale value is stored. The server never derives, validates, or bumps the hash; it stores exactly what it is given. So the API offers no compare-and-swap, no conflict detection, and no undo.
+
+Two facts make "just be careful" untenable as a discipline. First, the recipe object carries **35 fields, seven of which appear in no published research** — five of them structured twins of the free-text time and serving fields, all currently `null`, which is precisely what makes them easy to omit and expensive to lose. Any client that builds a payload from a field list it believes to be complete is already wrong. `soggycactus/paprika-3-mcp` demonstrably blanks rating, categories, source and photos on every edit for exactly this reason.
+
+Second, the obvious safe-looking rule — *echo back every key you received* — is itself a bug when applied to `hash`. Because sync is driven by hash **inequality**, echoing the fetched hash produces a write the server accepts and no other device ever pulls: a silent, invisible edit.
+
+So the mechanism is a single `write(uid, mutate_fn)` in `paprika_core`. It fetches the object, hands the caller the fetched dict to modify, and posts the result. **There is no public API that accepts a payload a caller assembled.** Callers may change keys; they may never choose the key set. Every rule below lives at that one seam instead of at every call site:
+
+- **Read-modify-write on a freshly fetched object, with no exceptions.** Not "except for single-field flips" — the exception is unenforceable, because once one code path assembles a payload the next contributor copies it.
+- **`hash` is regenerated on every write**, never echoed. It is an outgoing change-marker, not incoming data. Any 64-hex value is accepted; the field is mandatory and omitting it fails.
+- **`photo_url` is stripped.** Response-only, and it expires within hours.
+- **The pre-image is captured before every write** — whole, never a diff, since only a whole object can be restored.
+
+## Consequences
+
+- **Undo works, including for deletions.** Because writes are full-object and idempotent, restoring is just re-posting the pre-image through the same chokepoint. This was verified live: a recipe removed with `deleted: true` was **fully resurrected** by re-posting its pre-image — back in the index, readable, all fields intact. Pre-images live in `~/.paprika/undo.sqlite3`, which is deliberately *not* `cache.sqlite3`: the cache is disposable, an undo history is not.
+- **`in_trash` and `deleted` are not the same act, and the ecosystem documents this backwards.** Measured: `in_trash: true` leaves a recipe in `/sync/recipes/` and readable — correctly, since her other devices must render their own trash — while `deleted: true` removes it. Anything she asked to delete is written as `in_trash`, so her recovery path is the app's own trash and does not depend on our snapshot surviving. `deleted` is reserved for objects the plugin created and is cleaning up. The mirror must filter trashed recipes everywhere.
+- **A bulk run verifies itself in one request.** Since we choose the hash we write, we know what every touched recipe should carry afterwards, and `GET /sync/recipes/` returns the whole account's `uid → hash` in a single call. Three hundred writes are verified for the price of one request. Single writes are not verified: the read-modify-write fetch is milliseconds before the post, and failures are loud.
+- **Never trust the status code, in either direction.** Errors arrive at HTTP 200 with an `{"error": …}` body, *and* genuinely malformed writes return HTTP 500. The message names no field, so a rejected write gives nothing to repair from — validation happens client-side.
+- **This decision is what keeps [ADR 0001](0001-paprika-owns-the-truth.md) safe.** The mirror is a mirror rather than a write buffer only because every mutation re-reads first, which is what collapses "cache disagrees with server" into "cache is stale" and deletes the merge algorithm. **A partial-write escape hatch reopens that decision as well as this one.**
+- **A reader who finds the chokepoint verbose should not flatten it.** The two special cases — regenerating `hash`, stripping `photo_url` — look like inconsistencies in an otherwise uniform echo-everything rule. They are the two places where uniformity is the bug.
