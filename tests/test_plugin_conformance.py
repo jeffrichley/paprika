@@ -433,7 +433,7 @@ def test_the_outstanding_skills_are_the_ones_whose_tickets_are_open() -> None:
     """
     outstanding = set(ROSTER) - _present()
 
-    assert outstanding == {"edit-recipe", "nutrition"}
+    assert outstanding == {"nutrition"}
 
 
 def test_the_meta_skill_is_never_something_she_types() -> None:
