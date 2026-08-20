@@ -1380,6 +1380,10 @@ def write_recipe_create(
     add: Annotated[
         list[str] | None, typer.Option("--add", help="categories=Name")
     ] = None,
+    invented: Annotated[
+        bool,
+        typer.Option("--invented", help="This one is ours, so mark it as ours."),
+    ] = False,
     run: Annotated[str | None, RUN_OPTION] = None,
     done: Annotated[bool, DONE_OPTION] = False,
 ) -> None:
@@ -1392,6 +1396,7 @@ def write_recipe_create(
     Args:
         set_: Fields to fill in.
         add: Categories to file it under, by name.
+        invented: Whether this recipe is one we made up rather than one of hers.
         run: An earlier Run to join.
         done: Whether this finishes the job.
     """
@@ -1408,7 +1413,12 @@ def write_recipe_create(
         client = sign_in()
         try:
             with undo.open_run(run) as opened:
-                _uid, name = write.create(client, mutate, run=opened)
+                _uid, name = write.create(
+                    client,
+                    mutate,
+                    run=opened,
+                    invented_on=dt.date.today().isoformat() if invented else None,
+                )
                 changed, joined = opened.changed(), opened.id
             _after_write(client, done)
         finally:

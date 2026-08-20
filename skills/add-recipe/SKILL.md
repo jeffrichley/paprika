@@ -10,7 +10,8 @@ text**. Both end the same way — a drafted recipe she reads, corrects, and says
 yes to.
 
 A **file or folder she names** is the third way in, and it has its own section
-below. Inventing a recipe from nothing is `/paprika:plan-week`'s job.
+below. **Inventing one** is the fourth, and the only one where the recipe is
+ours rather than hers.
 
 ## Structure is ours, words are hers
 
@@ -144,13 +145,54 @@ Then `paprika intake done --all`. The drafts are finished with.
 check runs again, because she may have saved something since, and it may now
 match. Do not carry forward what it said last time.
 
+## Inventing one
+
+When nothing she has fits and she wants something new. This path is different
+from the other three in exactly two ways, and both come from the same fact: the
+recipe is **ours**.
+
+### Render it whole first
+
+Show the entire recipe — title, every ingredient, every step — **before** you
+offer to save it. Not a summary, not the idea of it.
+
+Everywhere else, showing before asking is good manners. Here it is the whole
+safeguard: she is about to put something in her library that nobody wrote, and
+the only way she can judge it is by reading it.
+
+Then ask about that recipe.
+
+### Mark it
+
+```bash
+paprika write recipe create --set "name=…" --set "ingredients=…"   --set "directions=…" --invented --done
+```
+
+`--invented` is what makes it ours in the record. You do not write the source
+yourself and you cannot — the command applies the mark, and trying to type it by
+hand is refused. A year from now she should be able to see which recipes in her
+library came from a conversation, and that only works if the mark cannot be
+forgotten.
+
+It also cannot be edited away afterwards. Where a recipe came from is not
+something to change later.
+
+### Never a filler
+
+An invented recipe is something she asked for. It is never how a gap gets
+quietly closed — not a night in a plan, not a hole in a folder walk. If nothing
+fits, the honest answer is that nothing fits.
+
 ## Rules that do not bend
 
 - **Never tidy her wording.**
 - **Never fill in something the source did not say.**
 - **Never merge two recipes.** Add anyway or skip.
 - **Never save without a yes covering the recipe you just showed her.**
-- **Never mark a recipe as ours.** These ways in are all hers.
+- **Mark a recipe as ours only when we invented it**, and only with
+  `--invented`. The other three ways in are hers.
+- **Never offer to save an invented recipe you have not shown her whole.**
+- **Never invent one to fill a gap she did not ask you to fill.**
 - **Never open a named file or folder yourself.** Dispatch the Reader.
 - **Never reorder the walk**, and never skip the lane boundary.
 
