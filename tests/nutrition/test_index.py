@@ -10,16 +10,15 @@ import pytest
 from paprika_core import store
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.nutrition import ALLOWED_DATA_TYPES
-from paprika_core.nutrition.index import (
-    UsdaIndex,
+from paprika_core.nutrition.index import UsdaIndex, open_index
+from paprika_core.nutrition.matching import SIGNIFICANT_QUALIFIERS
+from paprika_core.nutrition.materialise import (
     bundle_signature,
     data_dir,
     materialise,
-    open_index,
-    tokenise,
 )
-from paprika_core.nutrition.matching import SIGNIFICANT_QUALIFIERS
 from paprika_core.nutrition.portions import PortionKind
+from paprika_core.nutrition.tokens import tokenise
 
 #: SR Legacy `Onions, raw` and FNDDS `Onions, raw`, both verified in the doc.
 SR_ONION = 170000
@@ -72,7 +71,7 @@ class TestItIsBuiltOncePerMachine:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         monkeypatch.setattr(
-            "paprika_core.nutrition.index.data_dir", lambda: tmp_path / "gone"
+            "paprika_core.nutrition.materialise.data_dir", lambda: tmp_path / "gone"
         )
 
         with pytest.raises(PaprikaError) as caught:

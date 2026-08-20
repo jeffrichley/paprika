@@ -23,8 +23,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import final
 
-from paprika_core.nutrition.index import FoodRecord, UsdaIndex, tokenise
+from paprika_core.nutrition.index import FoodRecord, UsdaIndex
 from paprika_core.nutrition.parsing import ParsedIngredient
+from paprika_core.nutrition.tokens import tokenise
 
 #: Words a USDA description can add that change the food nutritionally. Salted
 #: versus unsalted butter is a real difference, and a matcher inventing one is

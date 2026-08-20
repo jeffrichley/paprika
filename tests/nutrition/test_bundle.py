@@ -21,7 +21,7 @@ from paprika_core.nutrition.bundle import (
     PORTIONS_FILE,
     build_bundle,
 )
-from paprika_core.nutrition.index import data_dir
+from paprika_core.nutrition.materialise import data_dir
 
 FOODS = [
     ("fdc_id", "data_type", "description", "food_category_id", "publication_date"),

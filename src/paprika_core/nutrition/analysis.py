@@ -22,8 +22,9 @@ from dataclasses import dataclass
 from typing import final
 
 from paprika_core import store
-from paprika_core.nutrition.index import UsdaIndex, bundle_signature, open_index
+from paprika_core.nutrition.index import UsdaIndex, open_index
 from paprika_core.nutrition.matching import match, query_words
+from paprika_core.nutrition.materialise import bundle_signature
 from paprika_core.nutrition.memo import Memos
 from paprika_core.nutrition.parsing import parse_line
 from paprika_core.nutrition.quantify import weigh

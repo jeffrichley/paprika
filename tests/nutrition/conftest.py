@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from paprika_core.nutrition.index import UsdaIndex, materialise
+from paprika_core.nutrition.index import UsdaIndex
+from paprika_core.nutrition.materialise import materialise
 from paprika_core.nutrition.memo import Memos
 
 
