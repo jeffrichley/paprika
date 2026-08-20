@@ -11,15 +11,16 @@ this. It is one renderer over one contract, not a second output path.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Annotated, Any
 
 import typer
 
-from paprika_core import store, sync
+from paprika_core import freshness, pace, store, sync
 from paprika_core.envelope import Envelope, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
-from paprika_core.http import PaprikaClient
+from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
 from paprika_core.recipes import index_lines
@@ -167,34 +168,143 @@ def sync_library() -> None:
     _run(attempted, work)
 
 
+FRESH_OPTION = typer.Option("--fresh", help="Ask Paprika even if we just asked.")
+
+
+def _refresh(mirror: Mirror, fresh: bool) -> freshness.Freshness:
+    """Establish that the Mirror is current before anything reads it.
+
+    Args:
+        mirror: The Mirror about to be served.
+        fresh: Whether to ask even if a recent answer is in hand.
+
+    Returns:
+        freshness.Freshness: What it cost and what it found.
+    """
+    client = sign_in()
+    try:
+        return freshness.ensure_current(client, mirror, force=fresh)
+    finally:
+        client.close()
+
+
+def _library_size() -> int | None:
+    """Ask how many recipes the Library holds, without downloading any of them.
+
+    One request. The stub index runs about a hundred bytes per recipe, which is
+    cheap enough to spend on making a wait estimate true.
+
+    Returns:
+        int | None: The count, or ``None`` if Paprika could not be asked.
+    """
+    client = sign_in()
+    try:
+        stubs = client.get(RECIPE_INDEX_PATH, "counting your recipes")
+    except PaprikaError:
+        # A failed estimate is not a failed command. Saying nothing is honest.
+        return None
+    finally:
+        client.close()
+    return len(stubs) if isinstance(stubs, list) else None
+
+
+@contextmanager
+def _current_mirror(fresh: bool) -> Iterator[tuple[Mirror, freshness.Freshness]]:
+    """Open the Mirror, having first proved it current.
+
+    Args:
+        fresh: Whether to ask even if a recent answer is in hand.
+
+    Yields:
+        tuple[Mirror, freshness.Freshness]: The Mirror and what the check found.
+
+    Raises:
+        PaprikaError: ``nothing_mirrored`` when the Library was never downloaded.
+    """
+    path = store.mirror_path()
+    not_yet = PaprikaError(
+        Code.NOTHING_MIRRORED,
+        "Your recipes haven't been downloaded to this machine yet.",
+        detail=f"no mirror at {path}",
+    )
+    if not path.exists():
+        raise not_yet
+    with Mirror(path) as mirror:
+        # Never synced and synced-but-empty are different answers. An account
+        # with no recipes is a true, successful, empty read — saying "not
+        # downloaded yet" there would be a sentence that isn't true.
+        if mirror.age_seconds() is None:
+            raise not_yet
+        yield mirror, _refresh(mirror, fresh)
+
+
 @recipe_app.command("index")
-def recipe_index() -> None:
-    """List the whole Library, one line per recipe."""
+def recipe_index(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """List the whole Library, one line per recipe.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
     attempted = "reading your recipes"
 
     def work() -> Envelope:
-        path = store.mirror_path()
-        not_yet = PaprikaError(
-            Code.NOTHING_MIRRORED,
-            "Your recipes haven't been downloaded to this machine yet.",
-            detail=f"no mirror at {path}",
-        )
-        if not path.exists():
-            raise not_yet
-        with Mirror(path) as mirror:
-            lines = index_lines(mirror)
-            age = mirror.age_seconds()
-        # Never synced and synced-but-empty are different answers. An account
-        # with no recipes is a true, successful, empty index — saying "not
-        # downloaded yet" there would be a sentence that isn't true.
-        if age is None:
-            raise not_yet
-        data: dict[str, Any] = {
-            "recipes": lines,
-            "count": len(lines),
-            "mirror_age_seconds": round(age),
-        }
+        with _current_mirror(fresh) as (mirror, checked):
+            data: dict[str, Any] = {
+                "recipes": index_lines(mirror),
+                "count": mirror.count_recipes(),
+                "mirror_age_seconds": round(checked.age_seconds or 0),
+            }
         return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@app.command()
+def status(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """Report what this machine holds and how long a download would take.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "checking what this machine has"
+
+    def work() -> Envelope:
+        store.ensure_home()
+        set_up = True
+        try:
+            store.credentials()
+        except PaprikaError as unset:
+            if unset.code != Code.NOT_SET_UP:
+                raise
+            set_up = False
+
+        with Mirror(store.mirror_path()) as mirror:
+            age = mirror.age_seconds()
+            if set_up and age is not None:
+                age = _refresh(mirror, fresh).age_seconds
+            count = mirror.count_recipes()
+
+        # Before the first download the Mirror cannot say how big the Library
+        # is — and that is precisely when the estimate matters. One cheap
+        # request buys an honest number; without it we would report "no wait at
+        # all" for what is really a hundred-second walk.
+        expected = count if age is not None else (_library_size() if set_up else None)
+
+        return succeeded(
+            attempted,
+            data={
+                "set_up": set_up,
+                "recipes": count,
+                "mirror_age_seconds": round(age) if age is not None else None,
+                # Measured from this machine's own request durations. A skill
+                # turns 103 into "about two minutes". Null means we cannot say.
+                "estimated_seconds": (
+                    round(pace.cold_sync_seconds(expected))
+                    if expected is not None
+                    else None
+                ),
+            },
+        )
 
     _run(attempted, work)
 

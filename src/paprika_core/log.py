@@ -11,12 +11,22 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import Any
 
 from paprika_core.store import LOG_DIRNAME, home
 
 LOG_FILENAME = "paprika.jsonl"
 MAX_BYTES = 1_048_576
+
+
+def log_path() -> Path:
+    """Return the log file's path.
+
+    Returns:
+        Path: ``<home>/logs/paprika.jsonl``.
+    """
+    return home() / LOG_DIRNAME / LOG_FILENAME
 
 
 def log_event(event: str, **fields: Any) -> None:
@@ -29,11 +39,10 @@ def log_event(event: str, **fields: Any) -> None:
     record: dict[str, Any] = {"t": round(time.time(), 3), "event": event}
     record.update(fields)
     try:
-        directory = home() / LOG_DIRNAME
-        directory.mkdir(parents=True, exist_ok=True)
-        path = directory / LOG_FILENAME
+        path = log_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists() and path.stat().st_size >= MAX_BYTES:
-            path.replace(directory / f"{LOG_FILENAME}.1")
+            path.replace(path.parent / f"{LOG_FILENAME}.1")
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
     except OSError:

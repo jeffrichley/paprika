@@ -61,9 +61,10 @@ def test_the_category_tree_keeps_its_parents(mirror: Mirror) -> None:
     assert by_uid["CAT-MAINS"].parent_uid is None
 
 
-def test_a_cold_sync_rebuilds_rather_than_merges(mirror: Mirror) -> None:
-    mirror.put_recipe(make_recipe(A_UID, "Gone Next Time"))
+def test_a_refetched_recipe_replaces_rather_than_duplicates(mirror: Mirror) -> None:
+    """The Mirror is keyed by identity, so the same recipe twice is still one."""
+    mirror.put_recipe(make_recipe(A_UID, "First Name"))
+    mirror.put_recipe(make_recipe(A_UID, "Renamed"))
 
-    mirror.begin_library()
-
-    assert mirror.count_recipes() == 0
+    assert mirror.count_recipes() == 1
+    assert mirror.recipes()[0].name == "Renamed"
