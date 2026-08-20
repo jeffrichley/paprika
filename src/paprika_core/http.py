@@ -363,7 +363,7 @@ class PaprikaClient:
         """
         return self._send("GET", path, attempted)
 
-    def post_object(self, path: str, payload: Any, attempted: str) -> Any:
+    def _post_object(self, path: str, payload: Any, attempted: str) -> Any:
         """Write one object, gzipped, as the API insists.
 
         Every sync write is a ``multipart/form-data`` post whose ``data`` part is

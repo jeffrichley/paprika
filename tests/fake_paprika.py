@@ -85,6 +85,9 @@ RECIPE_FIELDS: tuple[str, ...] = (
 #: sending `""` where `null` is required, earns a genuine 500 naming no field.
 _PHOTO_FIELDS = ("photo", "photo_hash", "photo_large")
 
+#: Removal. Not part of the v2 recipe object as fetched, but accepted on write.
+REMOVAL = "deleted"
+
 
 def _error(message: str, code: int = 1, status: int = 200) -> httpx.Response:
     """Build an error response — at a success status by default, as Paprika does.
@@ -142,6 +145,17 @@ class FakePaprika:
     counters: dict[str, int] = field(default_factory=dict)
     writes: list[dict[str, Any]] = field(default_factory=list)
     requests: list[tuple[str, str]] = field(default_factory=list)
+    #: When set, every recipe write is refused. For exercising a Run that starts
+    #: failing partway, which must stop rather than continue.
+    fail_writes: bool = False
+    #: Refuse writes only once this many have landed.
+    fail_writes_after: int | None = None
+    #: Accept the write, answer `true`, and quietly keep the old object. The
+    #: failure mode a status code would never reveal, and the reason a bulk Run
+    #: verifies itself rather than trusting what it was told.
+    silently_discard: set[str] = field(default_factory=set)
+    #: Refuse the stub index once a write has happened, so a Run cannot verify.
+    fail_index_after_write: bool = False
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -213,6 +227,8 @@ class FakePaprika:
         if path == "/api/v2/sync/categories/":
             return _result([dict(c) for c in self.categories])
         if path == "/api/v2/sync/recipes/":
+            if self.fail_index_after_write and self.writes:
+                return _error("Try again later.")
             # Stubs only. There is no bulk recipe download, and this is the
             # single fact that makes a cold sync cost 1 + N requests.
             #
@@ -249,6 +265,8 @@ class FakePaprika:
         # The plural route is the web clipper's scraper, not a bulk write. Using
         # it to create recipes is a 500.
         if path == "/api/v2/sync/recipes/":
+            if self.fail_index_after_write and self.writes:
+                return _error("Try again later.")
             return _refused()
         if path.startswith("/api/v2/sync/recipe/") and path.endswith("/"):
             return self._post_recipe(path.rsplit("/", 2)[-2], request)
@@ -267,6 +285,12 @@ class FakePaprika:
         Returns:
             httpx.Response: ``true`` on success, a 500 on anything malformed.
         """
+        if self.fail_writes or (
+            self.fail_writes_after is not None
+            and len(self.writes) >= self.fail_writes_after
+        ):
+            return _refused()
+
         body = _extract_gzipped_part(request.content)
         if body is None or not isinstance(body, dict):
             return _refused()
@@ -289,7 +313,16 @@ class FakePaprika:
         stored = dict(body)
         stored["uid"] = uid
         stored["photo_url"] = None
-        self.recipes[uid] = stored
+        if uid in self.silently_discard:
+            # Accepted, acknowledged, and not actually stored.
+            self.writes.append(dict(body))
+            return _result(True)
+        if stored.pop(REMOVAL, False):
+            # Removal, and it leaves no tombstone: the object is simply gone
+            # from the collection. Re-posting the whole thing brings it back.
+            self.recipes.pop(uid, None)
+        else:
+            self.recipes[uid] = stored
         self.writes.append(dict(body))
         self.counters["recipes"] = self.counters.get("recipes", 0) + 1
         return _result(True)
