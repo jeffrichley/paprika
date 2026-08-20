@@ -302,6 +302,9 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
         "create",
         "trash",
         "nutrition",
+        # A picture is a change to her library like any other, so it lives
+        # under the prefix a single deny rule covers.
+        "photo",
     }
     # Reading what could be put back changes nothing, so it stays outside.
     assert _commands_at("undo") == {"list"}

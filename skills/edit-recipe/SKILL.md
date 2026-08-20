@@ -48,6 +48,23 @@ recipe is identified, anything about how it syncs, and whether it is in the
 trash. **Trashing is `paprika write recipe trash`**, which puts it in Paprika's
 own trash where she can get it back herself.
 
+## Giving one a picture
+
+**A recipe that has none** takes one from a file she names:
+
+```bash
+paprika write recipe photo <handle> --file "<path>"
+```
+
+What goes up is a square thumbnail, which is what the recipe object itself
+carries. It is not the full-size gallery picture — that is a different thing and
+the plugin cannot set it, so say "a thumbnail" rather than implying otherwise.
+
+**A recipe that already has one is refused**, and the refusal is the true reason:
+swapping a picture could not be undone, because what was there before cannot be
+kept. Tell her to take the old one off in Paprika first. Do not offer to work
+around it.
+
 ## Filling in a gap
 
 A recipe read from a photo or a page may carry a marker in its own text where a
