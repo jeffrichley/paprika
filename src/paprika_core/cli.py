@@ -10,6 +10,7 @@ this. It is one renderer over one contract, not a second output path.
 
 from __future__ import annotations
 
+import datetime as dt
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -753,6 +754,81 @@ def health_report(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
     _run(attempted, work)
 
 
+nutrition_app = typer.Typer(
+    no_args_is_help=True, help="Work out nutrition, only when asked."
+)
+app.add_typer(nutrition_app, name="nutrition")
+
+
+def _rolled(since: str, until: str, handle: str | None) -> dict[str, Any]:
+    """Work out nutrition over a stretch of days, or for one recipe.
+
+    The index and the memos are opened once around the whole job, because
+    opening them is the expensive part.
+
+    Args:
+        since: First day.
+        until: Last day.
+        handle: One recipe instead of a stretch, when she asked about one.
+
+    Returns:
+        dict[str, Any]: The envelope payload.
+    """
+    from paprika_core.nutrition import analysis, rollup
+
+    with analysis.opened() as (index, memos):
+
+        def analyse(lines: list[str]) -> Any:
+            return analysis.analyse(lines, index, memos)
+
+        with Mirror(store.mirror_path()) as mirror:
+            if handle is not None:
+                body = mirror.recipe_body(handle)
+                if body is None:
+                    raise PaprikaError(
+                        Code.NOTHING_MIRRORED,
+                        "That isn't a recipe we know about.",
+                        detail=f"unknown handle {handle!r}",
+                    )
+                from paprika_core.groceries import _ingredient_lines
+
+                made = rollup.of_lines(_ingredient_lines(body), analyse)
+            else:
+                made = rollup.over(mirror, since, until, analyse)
+    return rollup.as_data(made)
+
+
+@nutrition_app.command("rollup")
+def nutrition_rollup(
+    since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
+    until: Annotated[str, typer.Option("--to", help="Last day, YYYY-MM-DD.")] = "",
+) -> None:
+    """Work out what a stretch of days comes to.
+
+    The week is the unit. Nothing here is journaled and nothing is attached to
+    a plan — it is computed when she asks and not before.
+
+    Args:
+        since: First day.
+        until: Last day.
+    """
+    attempted = "working out how the week looks"
+    _run(attempted, lambda: succeeded(attempted, data=_rolled(since, until, None)))
+
+
+@nutrition_app.command("recipe")
+def nutrition_recipe(
+    handle: Annotated[str, typer.Argument(help="Which recipe.")],
+) -> None:
+    """Work out what one recipe comes to.
+
+    Args:
+        handle: Which recipe.
+    """
+    attempted = "working out what a recipe comes to"
+    _run(attempted, lambda: succeeded(attempted, data=_rolled("", "", handle)))
+
+
 @app.command("grocery-draft")
 def grocery_draft(
     since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
@@ -1045,6 +1121,79 @@ def write_recipe_create(
             attempted=attempted,
             changed=changed,
             data={"run": joined, "saved": name},
+        )
+
+    _run(attempted, work)
+
+
+@write_recipe_app.command("nutrition")
+def write_recipe_nutrition(
+    handle: Annotated[str, typer.Argument(help="Which recipe.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Write what a recipe comes to into the recipe itself.
+
+    A command of its own rather than a field anyone can set, because the string
+    it writes **escapes to her phone**, where no skill is running and nothing
+    can explain it. The hedge and the date are composed here so that they cannot
+    be left off, and this overwrites whatever the recipe's author had put there.
+
+    Args:
+        handle: Which recipe.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "writing the nutrition into a recipe"
+
+    def work() -> Envelope:
+        from paprika_core.nutrition import rollup as rollup_module
+
+        with Mirror(store.mirror_path()) as mirror:
+            uid = mirror.uid_for(handle)
+            name = mirror.recipe_body(handle)
+        if uid is None or name is None:
+            raise PaprikaError(
+                Code.NOTHING_MIRRORED,
+                "That isn't a recipe we know about.",
+                detail=f"unknown handle {handle!r}",
+            )
+        made = _rolled("", "", handle)
+        rebuilt = rollup_module.Rollup(
+            nutrients=tuple(
+                rollup_module.Nutrient(
+                    name=n["name"], low=n["low"], high=n["high"], exact=n["exact"]
+                )
+                for n in made["nutrients"]
+            ),
+            excluded=tuple(made["excluded"]),
+            refused=made["no_number_because"],
+        )
+        try:
+            text = rollup_module.written_back(rebuilt, dt.date.today().isoformat())
+        except ValueError as unearned:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "There isn't a number worth putting in that recipe.",
+                detail=str(unearned),
+            ) from unearned
+
+        def mutate(recipe: dict[str, Any]) -> None:
+            recipe["nutritional_info"] = text
+
+        client = sign_in()
+        try:
+            with undo.open_run(run) as opened:
+                write.write(client, uid, mutate, run=opened)
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "written": str(name.get("name") or "")},
         )
 
     _run(attempted, work)

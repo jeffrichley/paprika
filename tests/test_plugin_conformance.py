@@ -424,16 +424,13 @@ def test_the_roster_is_eleven() -> None:
     assert len(ROSTER) == 11
 
 
-def test_the_outstanding_skills_are_the_ones_whose_tickets_are_open() -> None:
-    """This fails when the last of them lands, which is when it should be deleted.
+def test_every_skill_on_the_roster_exists() -> None:
+    """All eleven. The list of outstanding ones is gone, which was the point.
 
-    Being explicit beats a silently-passing check over whatever happens to be on
-    disk: the count is not eleven yet, and a test that pretended otherwise would
-    be the kind of green nobody should trust.
+    Until this passed, a test named the four that were missing so the count
+    being wrong was visible rather than papered over. It has done its job.
     """
-    outstanding = set(ROSTER) - _present()
-
-    assert outstanding == {"nutrition"}
+    assert _present() == set(ROSTER)
 
 
 def test_the_meta_skill_is_never_something_she_types() -> None:
