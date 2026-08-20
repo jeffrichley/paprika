@@ -259,9 +259,11 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
     and must not sit outside the fence.
     """
     # `sync` is deliberately outside the prefix: it moves the Mirror, not her
-    # data, and a prefix that means two things means neither.
+    # data, and a prefix that means two things means neither. `primer` is what
+    # the session hook calls; it only reads, and nobody types it.
     assert _commands_at() == {
         "login",
+        "primer",
         "sync",
         "status",
         "setup",

@@ -21,6 +21,7 @@ conversation where she can argue with it.
 from __future__ import annotations
 
 import datetime as dt
+import json
 from pathlib import Path
 
 from paprika_core import profile, setup, store
@@ -29,6 +30,10 @@ from paprika_core.mirror import Mirror
 #: How far ahead the Plan is reported. A week, because that is the unit she
 #: plans in and the unit a Rollup is judged over.
 LOOKAHEAD_DAYS = 7
+
+#: What this plugin is called to the thing that installed the command — the name
+#: whoever is repairing it has to type.
+DISTRIBUTION = "paprika-plugin"
 
 #: The most lines the fence may run to. Set before the content, so a later idea
 #: has to trade against an existing one rather than being appended.
@@ -54,6 +59,70 @@ def _fence(root: Path) -> str:
         return ""
     parts = text.split("---", 2)
     return parts[2].strip() if len(parts) == 3 else text.strip()
+
+
+def installed_version() -> str | None:
+    """Return the version of the command that is running.
+
+    Read from the package rather than from its installed metadata, because
+    ``importlib.metadata`` costs about **47 ms** cold — most of a second primer
+    on top of the one we have. The budget test caught that; the constant is
+    free, travels with the code wherever it was installed from, and is moved by
+    the same release that moves the manifest.
+
+    Returns:
+        str | None: The version, or ``None`` when it cannot be established.
+    """
+    from paprika_core import __version__
+
+    return __version__ or None
+
+
+def plugin_version(root: Path) -> str | None:
+    """Return the version of the plugin whose skills this session is using.
+
+    Args:
+        root: The plugin's root directory.
+
+    Returns:
+        str | None: The version in its manifest, or ``None`` when the manifest
+            cannot be read.
+    """
+    try:
+        manifest = json.loads(
+            (root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError):
+        return None
+    found = manifest.get("version")
+    return str(found) if found else None
+
+
+def mismatch_lines(root: Path) -> list[str]:
+    """Say so when the skills and the command are different versions.
+
+    They are installed by two commands nobody runs together — ``/plugin update``
+    and ``uv tool upgrade`` — so drifting apart is the ordinary outcome, not the
+    unlucky one. Unchecked it surfaces as a skill calling a subcommand that does
+    not exist, which reads as a broken plugin rather than a stale one.
+
+    Args:
+        root: The plugin's root directory.
+
+    Returns:
+        list[str]: One line, or none. **Not knowing a version is not a
+            disagreement** — a warning every session is one nobody reads by the
+            second week.
+    """
+    theirs, ours = plugin_version(root), installed_version()
+    if theirs is None or ours is None or theirs == ours:
+        return []
+    return [
+        f"The skills here are version {theirs} and the `paprika` command is "
+        f"{ours}. Anything that fails oddly is likely that. Fixing it is "
+        f"`uv tool upgrade {DISTRIBUTION}` and `/plugin update paprika`, then a "
+        f"new session."
+    ]
 
 
 def _plan_lines(today: dt.date) -> list[str]:
@@ -173,7 +242,7 @@ def build(root: Path, today: dt.date | None = None) -> str:
     """
     try:
         body = _fence(root)
-        state = facts(today)
+        state = mismatch_lines(root) + facts(today)
     except Exception:
         body, state = _fence(root), []
     block = [body] if body else []

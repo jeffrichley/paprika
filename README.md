@@ -86,7 +86,11 @@ Then start a new session, so it picks the plugin up.
 uv tool upgrade paprika-plugin
 ```
 
-and `/plugin update paprika` in Claude Code.
+and `/plugin update paprika` in Claude Code. Then start a new session.
+
+They're two separate installs — the command, and the plugin Claude Code loads —
+so updating one and not the other leaves them **out of step**. It says so when
+that happens, rather than letting you find out through something failing oddly.
 
 ## Setting it up
 

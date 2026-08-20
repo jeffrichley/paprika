@@ -621,3 +621,66 @@ def test_the_readme_no_longer_claims_the_work_is_unfinished() -> None:
 
     for stale in ("walking skeleton", "come next", "implementation to come"):
         assert stale not in readme, stale
+
+
+def test_the_two_halves_agree_on_what_version_this_is() -> None:
+    """Three files carry the version, and the primer compares two of them.
+
+    A drift check that has drifted is worse than none: it would cry mismatch on
+    a machine where both halves were updated together. Commitizen moves all
+    three on release; this is what fails if one is ever moved by hand.
+    """
+    manifest = json.loads(
+        (REPO / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    package = re.search(
+        r'^__version__ = "([^"]+)"',
+        (REPO / "src" / "paprika_core" / "__init__.py").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    project = re.search(
+        r'^version = "([^"]+)"',
+        (REPO / "pyproject.toml").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+
+    assert package is not None and project is not None
+    assert manifest["version"] == package.group(1) == project.group(1)
+
+
+def test_the_release_moves_every_file_that_carries_a_version() -> None:
+    """Otherwise the agreement above holds only until the next release."""
+    pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+    bumped = re.search(r"version_files = \[(.*?)\]", pyproject, re.DOTALL)
+
+    assert bumped is not None
+    for carrier in ("pyproject.toml", "plugin.json", "paprika_core/__init__.py"):
+        assert carrier in bumped.group(1)
+
+
+def test_the_hook_needs_nothing_but_the_command() -> None:
+    """The dependencies live in one environment; the hook must use that one.
+
+    #78 was a hook that found a *different* interpreter — a system python3 that
+    could see this package's source without being able to import it — and failed
+    silently for every user who had installed the plugin rather than cloned it.
+    """
+    script = (REPO / "hooks" / "session-start.sh").read_text(encoding="utf-8")
+    runs = [
+        line
+        for line in script.splitlines()
+        if not line.lstrip().startswith("#") and "python" in line
+    ]
+
+    assert runs == []
+    assert "primer" in script
+
+
+def test_the_readme_says_the_two_halves_are_updated_together() -> None:
+    """One command updates one half. Being told that beats discovering it."""
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    updating = readme.split("### Updating", 1)[1].split("##", 1)[0]
+
+    assert "uv tool upgrade" in updating
+    assert "/plugin update" in updating
+    assert "out of step" in updating
