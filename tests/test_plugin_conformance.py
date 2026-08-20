@@ -41,11 +41,40 @@ def test_the_manifest_exists_and_parses(manifest: dict[str, Any]) -> None:
     assert manifest["description"]
 
 
-def test_the_manifest_directory_holds_nothing_else() -> None:
-    """``.claude-plugin/`` contains ``plugin.json`` and nothing else."""
-    contents = sorted(p.name for p in MANIFEST.parent.iterdir())
+def test_the_manifest_directory_holds_only_manifests() -> None:
+    """``.claude-plugin/`` holds the two manifests and nothing else.
 
-    assert contents == ["plugin.json"]
+    Skills, agents and hooks live at the plugin root; nesting one here loads
+    nothing and says nothing about it. The marketplace manifest belongs beside
+    the plugin one because this repository is both — it describes itself so it
+    can be added directly, without a catalogue in between.
+    """
+    contents = sorted(path.name for path in MANIFEST.parent.iterdir())
+
+    assert contents == ["marketplace.json", "plugin.json"]
+
+
+def test_the_marketplace_offers_this_plugin_from_this_repository() -> None:
+    """Somebody adding the repository as a marketplace must find the plugin."""
+    catalogue = json.loads(
+        (REPO / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+    offered = catalogue["plugins"]
+    assert len(offered) == 1
+    assert offered[0]["name"] == manifest["name"]
+    assert offered[0]["version"] == manifest["version"]
+    assert "github.com/jeffrichley/paprika" in offered[0]["source"]["url"]
+
+
+def test_the_marketplace_says_it_is_unaffiliated() -> None:
+    """It is the first thing anyone browsing sees, so it says so there too."""
+    catalogue = json.loads(
+        (REPO / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+
+    assert "Unaffiliated" in catalogue["plugins"][0]["description"]
 
 
 def test_the_asset_directories_live_at_the_plugin_root() -> None:
@@ -528,3 +557,67 @@ def test_no_description_assumes_who_installed_this() -> None:
         description = front.split("description:", 1)[1].split("\n")[0]
         words = set(re.findall(r"[a-z]+", description.casefold()))
         assert not words & {"her", "she", "hers"}, path.parent.name
+
+
+def _readme() -> str:
+    """Return the README's text.
+
+    Returns:
+        str: What somebody deciding whether to install this actually reads.
+    """
+    return (REPO / "README.md").read_text(encoding="utf-8")
+
+
+def test_the_readme_says_how_to_install_the_thing_it_needs() -> None:
+    """`uv` is the first barrier anyone hits, and it is not on most machines."""
+    readme = _readme()
+
+    assert "astral.sh/uv/install.sh" in readme
+    assert "astral.sh/uv/install.ps1" in readme, "Windows is a machine too"
+    assert "uv tool install git+https://github.com/jeffrichley/paprika" in readme
+
+
+def test_the_readme_says_how_to_add_the_plugin() -> None:
+    readme = _readme()
+
+    assert "/plugin marketplace add jeffrichley/paprika" in readme
+    assert "/plugin install paprika@paprika" in readme
+
+
+def test_the_readme_keeps_the_two_things_that_were_agreed_in_their_own_tickets() -> (
+    None
+):
+    """The disclaimer and the credential trade-off are already right.
+
+    Both were settled in tickets of their own and are the kind of careful
+    wording a rewrite dilutes without noticing.
+    """
+    readme = _readme()
+
+    assert "not affiliated with, endorsed by, or supported by" in readme
+    assert "anyone who can read files in your user account" in readme
+    assert "deliberate trade-off" in readme
+
+
+def test_the_readme_says_uninstalling_leaves_her_data_alone() -> None:
+    readme = _readme()
+
+    assert "uv tool uninstall" in readme
+    assert "left alone" in readme
+
+
+def test_the_readme_describes_jobs_rather_than_commands() -> None:
+    """A person deciding whether to install this should not meet a command."""
+    readme = _readme()
+    before_developers = readme.split("## For developers")[0]
+
+    for command in ("recipe index", "write recipe", "grocery-draft", "plan show"):
+        assert command not in before_developers, command
+
+
+def test_the_readme_no_longer_claims_the_work_is_unfinished() -> None:
+    """It described a walking skeleton long after everything had shipped."""
+    readme = _readme().casefold()
+
+    for stale in ("walking skeleton", "come next", "implementation to come"):
+        assert stale not in readme, stale

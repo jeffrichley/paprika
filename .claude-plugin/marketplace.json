@@ -1,0 +1,36 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "paprika",
+  "description": "A Claude Code plugin for managing a Paprika 3 recipe library and planning a week of meals from it.",
+  "owner": {
+    "name": "Jeff Richley",
+    "url": "https://github.com/jeffrichley"
+  },
+  "metadata": {
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "paprika",
+      "description": "Plan a week of meals from your own Paprika recipes, build a shopping list with what you already have subtracted, get recipes in from links, photos and scanned pages, and tidy up a library that has grown messy. Unaffiliated with Hindsight Labs.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Jeff Richley"
+      },
+      "category": "productivity",
+      "license": "MIT",
+      "keywords": [
+        "paprika",
+        "recipes",
+        "meal-planning",
+        "groceries",
+        "nutrition"
+      ],
+      "source": {
+        "source": "url",
+        "url": "https://github.com/jeffrichley/paprika.git"
+      },
+      "strict": true
+    }
+  ]
+}
