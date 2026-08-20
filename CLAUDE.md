@@ -14,6 +14,11 @@ See `docs/agents/issue-tracker.md`.
 The five canonical triage roles, using their default label strings.
 See `docs/agents/triage-labels.md`.
 
+### Writing a skill
+
+Read `superpowers:writing-skills` first, then the local supplement.
+See `docs/agents/skill-writing.md`.
+
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root (created lazily).

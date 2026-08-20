@@ -72,8 +72,18 @@ Saving is `/paprika:add-recipe`'s job, not this skill's.
 - **Never say a recipe is hers when it came from the web**, or the reverse.
 - **A vague description is not a reason to ask her to be precise.** Read the
   library and make a judgement. Ask only when two recipes genuinely both fit.
-- **Never show her a handle** unless she needs it to point at something. It is
-  how you name a recipe to the program, not how she names it to you.
+- **Show a handle only when she needs one to point at something.** It is how you
+  name a recipe to the program, not how she names it to you.
+
+## When you are about to break one of those
+
+| The thought | What is actually true |
+|---|---|
+| "That's clearly not in her library" | Read the index. It costs almost nothing and you are often wrong. |
+| "I'll show hers and a web one so she can compare" | Two separate answers, each labelled. Never one list. |
+| "This web version is better, I'll combine the best bits" | That is a third recipe she never wrote. |
+| "She seemed happy with it, I'll save it" | An explicit yes, covering what you showed her. |
+| "Saying 90% match is helpful precision" | It is a number with nothing behind it. Say why, in words. |
 
 ## Common mistakes
 

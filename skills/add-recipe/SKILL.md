@@ -87,6 +87,16 @@ missing one.
 - **Never save without a yes covering the recipe you just showed her.**
 - **Never mark a recipe as ours.** These two ways in are hers.
 
+## When you are about to break one of those
+
+| The thought | What is actually true |
+|---|---|
+| "`1 c.` will confuse her later" | It is how she wrote it, and how her book writes it. |
+| "Every recipe should say how many it serves" | Blank means the page didn't say. That is information. |
+| "She already has one but this is the better version" | Add anyway or skip. Which survives is hers to decide. |
+| "The duplicate check is slow, the title is clearly new" | It is one command against her real library. Run it. |
+| "It obviously belongs under Baking" | A wrong category is harder to notice than a missing one. |
+
 ## Common mistakes
 
 | Mistake | Instead |

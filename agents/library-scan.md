@@ -1,6 +1,6 @@
 ---
 name: library-scan
-description: Use when a large recipe library needs clustering into groups that share a destination, or when possible duplicate recipes need finding across the whole library. Reads the whole library in a fresh context and returns a proposal. Dispatched only after the user has picked a job from the library health report, never to produce the report itself.
+description: Use when a large recipe library needs clustering into groups that share a destination, or when possible duplicate recipes need finding across a whole library — and only after the user has picked one of those jobs, never to produce the library health report itself.
 tools: Bash, Read, Grep, Glob
 ---
 

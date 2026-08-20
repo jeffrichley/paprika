@@ -1,6 +1,6 @@
 ---
 name: using-paprika
-description: Use when anything in the conversation touches her recipes, her meal plan, her shopping, or what is in her kitchen — this is injected at the start of every session and does not need invoking.
+description: Use when anything in the conversation touches the user's recipes, meal plan, shopping or kitchen — injected at the start of every session, so it never needs invoking by name.
 ---
 
 # Paprika

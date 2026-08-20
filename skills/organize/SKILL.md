@@ -16,9 +16,14 @@ asking again next week is how she sees progress.
 
 **Never dispatch the Scan to produce this.** It reports; it does not think.
 
-## Say it in three lines
+## What the report is made of
 
-Biggest win, second, then stop. Not a dashboard.
+Three lines, in this order:
+
+1. **How many recipes there are, and the biggest job** — the first entry in
+   `jobs`, with what it means said in her words rather than the report's.
+2. **The second job** — the second entry in `jobs`.
+3. **One closing line** for anything in `also`, and then stop.
 
 > 512 recipes. **187 have no category at all** — that's the big one. **41 are
 > filed only at a top level** where the rest of that kind sit further in.
@@ -27,8 +32,6 @@ Biggest win, second, then stop. Not a dashboard.
 Those three lines **are the menu.** She narrows by answering — *"just the
 uncategorised ones"*, *"only my Instant Pot stuff"* — and that narrows the Scan
 before it runs.
-
-Say what the numbers mean in her words, not the words the report uses.
 
 ## When there is nothing to do
 
