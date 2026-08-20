@@ -11,17 +11,19 @@ this. It is one renderer over one contract, not a second output path.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Annotated, Any
 
 import typer
 
-from paprika_core import store, sync
-from paprika_core.envelope import Envelope, failed, succeeded
+from paprika_core import bulk, freshness, pace, store, sync, undo, write
+from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
-from paprika_core.http import PaprikaClient
+from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
+from paprika_core.patch import Patch
 from paprika_core.recipes import index_lines
 from paprika_core.session import sign_in
 
@@ -32,6 +34,20 @@ app = typer.Typer(
 )
 recipe_app = typer.Typer(no_args_is_help=True, help="Read the Library.")
 app.add_typer(recipe_app, name="recipe")
+
+# Every mutating command lives under this one prefix, so a write reads as a
+# write in the transcript, greps as one in the log, and — the reason it wins —
+# is deniable with a single rule (`Bash(paprika write:*)`) rather than a list
+# somebody has to maintain.
+write_app = typer.Typer(no_args_is_help=True, help="Change things in Paprika.")
+app.add_typer(write_app, name="write")
+write_recipe_app = typer.Typer(no_args_is_help=True, help="Change a recipe.")
+write_app.add_typer(write_recipe_app, name="recipe")
+
+# Reading what could be put back changes nothing, so it stays outside the
+# prefix. Actually putting it back is a write like any other, and sits inside.
+undo_app = typer.Typer(no_args_is_help=True, help="What could be put back.")
+app.add_typer(undo_app, name="undo")
 
 _HUMAN = False
 
@@ -167,34 +183,337 @@ def sync_library() -> None:
     _run(attempted, work)
 
 
+FRESH_OPTION = typer.Option("--fresh", help="Ask Paprika even if we just asked.")
+
+
+def _refresh(mirror: Mirror, fresh: bool) -> freshness.Freshness:
+    """Establish that the Mirror is current before anything reads it.
+
+    Args:
+        mirror: The Mirror about to be served.
+        fresh: Whether to ask even if a recent answer is in hand.
+
+    Returns:
+        freshness.Freshness: What it cost and what it found.
+    """
+    client = sign_in()
+    try:
+        return freshness.ensure_current(client, mirror, force=fresh)
+    finally:
+        client.close()
+
+
+def _library_size() -> int | None:
+    """Ask how many recipes the Library holds, without downloading any of them.
+
+    One request. The stub index runs about a hundred bytes per recipe, which is
+    cheap enough to spend on making a wait estimate true.
+
+    Returns:
+        int | None: The count, or ``None`` if Paprika could not be asked.
+    """
+    client = sign_in()
+    try:
+        stubs = client.get(RECIPE_INDEX_PATH, "counting your recipes")
+    except PaprikaError:
+        # A failed estimate is not a failed command. Saying nothing is honest.
+        return None
+    finally:
+        client.close()
+    return len(stubs) if isinstance(stubs, list) else None
+
+
+@contextmanager
+def _current_mirror(fresh: bool) -> Iterator[tuple[Mirror, freshness.Freshness]]:
+    """Open the Mirror, having first proved it current.
+
+    Args:
+        fresh: Whether to ask even if a recent answer is in hand.
+
+    Yields:
+        tuple[Mirror, freshness.Freshness]: The Mirror and what the check found.
+
+    Raises:
+        PaprikaError: ``nothing_mirrored`` when the Library was never downloaded.
+    """
+    path = store.mirror_path()
+    not_yet = PaprikaError(
+        Code.NOTHING_MIRRORED,
+        "Your recipes haven't been downloaded to this machine yet.",
+        detail=f"no mirror at {path}",
+    )
+    if not path.exists():
+        raise not_yet
+    with Mirror(path) as mirror:
+        # Never synced and synced-but-empty are different answers. An account
+        # with no recipes is a true, successful, empty read — saying "not
+        # downloaded yet" there would be a sentence that isn't true.
+        if mirror.age_seconds() is None:
+            raise not_yet
+        yield mirror, _refresh(mirror, fresh)
+
+
 @recipe_app.command("index")
-def recipe_index() -> None:
-    """List the whole Library, one line per recipe."""
+def recipe_index(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """List the whole Library, one line per recipe.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
     attempted = "reading your recipes"
 
     def work() -> Envelope:
-        path = store.mirror_path()
-        not_yet = PaprikaError(
-            Code.NOTHING_MIRRORED,
-            "Your recipes haven't been downloaded to this machine yet.",
-            detail=f"no mirror at {path}",
-        )
-        if not path.exists():
-            raise not_yet
-        with Mirror(path) as mirror:
-            lines = index_lines(mirror)
-            age = mirror.age_seconds()
-        # Never synced and synced-but-empty are different answers. An account
-        # with no recipes is a true, successful, empty index — saying "not
-        # downloaded yet" there would be a sentence that isn't true.
-        if age is None:
-            raise not_yet
-        data: dict[str, Any] = {
-            "recipes": lines,
-            "count": len(lines),
-            "mirror_age_seconds": round(age),
-        }
+        with _current_mirror(fresh) as (mirror, checked):
+            data: dict[str, Any] = {
+                "recipes": index_lines(mirror),
+                "count": mirror.count_recipes(),
+                "mirror_age_seconds": round(checked.age_seconds or 0),
+            }
         return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@app.command()
+def status(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """Report what this machine holds and how long a download would take.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "checking what this machine has"
+
+    def work() -> Envelope:
+        store.ensure_home()
+        set_up = True
+        try:
+            store.credentials()
+        except PaprikaError as unset:
+            if unset.code != Code.NOT_SET_UP:
+                raise
+            set_up = False
+
+        with Mirror(store.mirror_path()) as mirror:
+            age = mirror.age_seconds()
+            if set_up and age is not None:
+                age = _refresh(mirror, fresh).age_seconds
+            count = mirror.count_recipes()
+
+        # Before the first download the Mirror cannot say how big the Library
+        # is — and that is precisely when the estimate matters. One cheap
+        # request buys an honest number; without it we would report "no wait at
+        # all" for what is really a hundred-second walk.
+        expected = count if age is not None else (_library_size() if set_up else None)
+
+        return succeeded(
+            attempted,
+            data={
+                "set_up": set_up,
+                "recipes": count,
+                "mirror_age_seconds": round(age) if age is not None else None,
+                # Measured from this machine's own request durations. A skill
+                # turns 103 into "about two minutes". Null means we cannot say.
+                "estimated_seconds": (
+                    round(pace.cold_sync_seconds(expected))
+                    if expected is not None
+                    else None
+                ),
+            },
+        )
+
+    _run(attempted, work)
+
+
+RUN_OPTION = typer.Option("--run", help="Join these changes to an earlier Run.")
+
+
+def _resolve(handles: list[str]) -> tuple[list[tuple[str, str]], dict[str, str]]:
+    """Turn handles into identities, and read her category names.
+
+    Args:
+        handles: The handles a caller named.
+
+    Returns:
+        tuple: The ``(uid, name)`` pairs, and a name-to-identifier map for
+            categories so a caller never has to learn what one looks like.
+
+    Raises:
+        PaprikaError: When a handle names nothing in the Library.
+    """
+    with Mirror(store.mirror_path()) as mirror:
+        known = {r.handle: r for r in mirror.recipes()}
+        categories = {
+            name.casefold(): uid for uid, name in mirror.category_names().items()
+        }
+        found: list[tuple[str, str]] = []
+        for handle in handles:
+            recipe = known.get(handle)
+            if recipe is None:
+                raise PaprikaError(
+                    Code.NOTHING_MIRRORED,
+                    "That isn't a recipe we know about.",
+                    detail=f"no mirrored recipe for handle {handle!r}",
+                )
+            found.append((mirror.uid_for(handle) or "", recipe.name))
+    return found, categories
+
+
+def _perform(
+    attempted: str,
+    targets: list[tuple[str, str, Any]],
+    run_id: str | None,
+) -> Envelope:
+    """Run a set of writes as one Run and turn the outcome into an envelope.
+
+    Args:
+        attempted: What is being tried.
+        targets: What to change.
+        run_id: An open Run to join, or ``None`` to start one.
+
+    Returns:
+        Envelope: The result, carrying the Run so a stopped one is addressable.
+    """
+    client = sign_in()
+    try:
+        with undo.open_run(run_id) as run:
+            outcome = bulk.apply_all(client, targets, run=run)
+            joined = run.id
+    finally:
+        client.close()
+
+    data: dict[str, Any] = {"run": joined, "saved": outcome.landed}
+    if outcome.missing:
+        data["not_saved"] = outcome.missing
+    if outcome.error is not None:
+        return Envelope(
+            ok=False,
+            attempted=attempted,
+            changed=outcome.changed,
+            complete=False,
+            error=ErrorDetail(code=outcome.error.code, message=outcome.error.message),
+            data=data,
+        )
+    return Envelope(
+        ok=True,
+        attempted=attempted,
+        changed=outcome.changed,
+        complete=outcome.complete,
+        data=data,
+    )
+
+
+@write_recipe_app.command("set")
+def write_recipe_set(
+    handle: str,
+    set_: Annotated[list[str] | None, typer.Option("--set", help="field=value")] = None,
+    add: Annotated[list[str] | None, typer.Option("--add", help="field=value")] = None,
+    remove: Annotated[
+        list[str] | None, typer.Option("--remove", help="field=value")
+    ] = None,
+    run: Annotated[str | None, RUN_OPTION] = None,
+) -> None:
+    """Change named fields on one recipe.
+
+    Args:
+        handle: Which recipe.
+        set_: Fields to replace.
+        add: List entries to add.
+        remove: List entries to take out.
+        run: An earlier Run to join.
+    """
+    attempted = "changing a recipe"
+
+    def work() -> Envelope:
+        patch = Patch.parse(sets=set_ or [], adds=add or [], removes=remove or [])
+        found, categories = _resolve([handle])
+        mutate = patch.as_mutation({"categories": categories})
+        return _perform(attempted, [(uid, name, mutate) for uid, name in found], run)
+
+    _run(attempted, work)
+
+
+@write_recipe_app.command("trash")
+def write_recipe_trash(
+    handle: str,
+    run: Annotated[str | None, RUN_OPTION] = None,
+) -> None:
+    """Put one recipe in Paprika's trash, where she can get it back herself.
+
+    Args:
+        handle: Which recipe.
+        run: An earlier Run to join.
+    """
+    attempted = "moving a recipe to the trash"
+
+    def work() -> Envelope:
+        found, _ = _resolve([handle])
+
+        def mutate(recipe: dict[str, Any]) -> None:
+            recipe["in_trash"] = True
+
+        return _perform(attempted, [(uid, name, mutate) for uid, name in found], run)
+
+    _run(attempted, work)
+
+
+@write_app.command("undo")
+def write_undo(
+    run: Annotated[str | None, typer.Argument(help="Which Run to reverse.")] = None,
+) -> None:
+    """Put back what the most recent change did.
+
+    Args:
+        run: Which Run to reverse. Omit for the most recent.
+    """
+    attempted = "putting things back the way they were"
+
+    def work() -> Envelope:
+        recent = undo.recent_runs()
+        if not recent:
+            raise PaprikaError(
+                Code.NOTHING_TO_UNDO,
+                "There's nothing recent to put back.",
+                detail="no run holds a landed pre-image",
+            )
+        # Offered by name only for the most recent, per the retention rule.
+        target = run or recent[0].run_id
+        pre_images = undo.pre_images_of(target)
+        if not pre_images:
+            raise PaprikaError(
+                Code.NOTHING_TO_UNDO,
+                "There's nothing recent to put back.",
+                detail=f"run {target} holds no pre-image",
+            )
+
+        client = sign_in()
+        try:
+            with undo.open_run() as reversal:
+                for pre_image in pre_images:
+                    write.restore(client, pre_image, run=reversal)
+                changed = reversal.changed()
+                names = reversal.landed_names()
+        finally:
+            client.close()
+        return succeeded(attempted, changed=changed, data={"put_back": names})
+
+    _run(attempted, work)
+
+
+@undo_app.command("list")
+def undo_list() -> None:
+    """List what could be put back, by what it changed rather than by name."""
+    attempted = "listing what could be put back"
+
+    def work() -> Envelope:
+        runs = [
+            {
+                "changed": summary.changed,
+                "names": summary.names,
+                "when": round(summary.ended_at) if summary.ended_at else None,
+            }
+            for summary in undo.recent_runs()
+        ]
+        return succeeded(attempted, data={"runs": runs})
 
     _run(attempted, work)
 

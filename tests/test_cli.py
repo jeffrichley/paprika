@@ -158,15 +158,72 @@ def test_recipe_index_names_her_categories_not_their_ids(
     assert "CAT-ROAST" not in roast
 
 
-def test_recipe_index_reads_the_mirror_without_the_network(
+def test_reads_in_one_conversation_ask_at_most_once(
     signed_in: Path, seeded: FakePaprika
 ) -> None:
+    """A sync has just asked everything, so the reads after it cost nothing."""
     runner.invoke(app, ["sync"])
     seeded.requests.clear()
 
     runner.invoke(app, ["recipe", "index"])
+    runner.invoke(app, ["recipe", "index"])
 
     assert seeded.requests == []
+
+
+def test_fresh_asks_again(signed_in: Path, seeded: FakePaprika) -> None:
+    """`--fresh` is an explicit opt-in, never a default."""
+    runner.invoke(app, ["sync"])
+    runner.invoke(app, ["recipe", "index"])
+    seeded.requests.clear()
+
+    runner.invoke(app, ["recipe", "index", "--fresh"])
+
+    assert seeded.requests == [("GET", "/api/v2/sync/status/")]
+
+
+def test_a_read_notices_a_recipe_she_deleted_on_her_phone(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """The reason freshness is asked rather than timed."""
+    runner.invoke(app, ["sync"])
+    gone = next(uid for uid, r in seeded.recipes.items() if not r["in_trash"])
+    gone_name = seeded.recipes[gone]["name"]
+    del seeded.recipes[gone]
+    seeded.counters["recipes"] += 1
+
+    envelope = envelope_of(runner.invoke(app, ["recipe", "index", "--fresh"]).stdout)
+
+    assert all(gone_name not in line for line in envelope["data"]["recipes"])
+
+
+def test_status_reports_what_this_machine_has(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    runner.invoke(app, ["sync"])
+
+    result = runner.invoke(app, ["status"])
+
+    envelope = envelope_of(result.stdout)
+    assert_envelope_shape(envelope)
+    assert_no_mechanics(envelope)
+    assert result.exit_code == 0
+    assert envelope["data"]["set_up"] is True
+    assert envelope["data"]["recipes"] == LIBRARY_SIZE
+    # The wiring, not the arithmetic — the fake answers instantly, so the
+    # measured median is sub-millisecond here. `test_pace.py` owns the maths.
+    assert isinstance(envelope["data"]["estimated_seconds"], int)
+
+
+def test_status_works_before_setup_rather_than_failing(paprika_home: Path) -> None:
+    """Reporting that setup is unfinished is an answer, not an error."""
+    result = runner.invoke(app, ["status"])
+
+    envelope = envelope_of(result.stdout)
+    assert result.exit_code == 0
+    assert envelope["ok"] is True
+    assert envelope["data"]["set_up"] is False
+    assert envelope["data"]["mirror_age_seconds"] is None
 
 
 def test_recipe_index_before_a_sync_says_so_without_a_traceback(
@@ -270,3 +327,24 @@ def test_diagnostics_go_to_the_log_not_the_session(paprika_home: Path) -> None:
     assert log.is_file()
     records = [json.loads(line) for line in log.read_text().splitlines()]
     assert any(record["event"] == "command" for record in records)
+
+
+def test_status_estimates_the_first_download_before_it_happens(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """The one moment the estimate matters, and the Mirror cannot supply the count."""
+    result = runner.invoke(app, ["status"])
+
+    envelope = envelope_of(result.stdout)
+    assert envelope["ok"] is True
+    assert envelope["data"]["recipes"] == 0
+    # One cheap request for the stub index is what makes the number honest.
+    assert envelope["data"]["estimated_seconds"] is not None
+    assert ("GET", "/api/v2/sync/recipes/") in seeded.requests
+
+
+def test_status_admits_it_cannot_estimate_before_setup(paprika_home: Path) -> None:
+    """Nothing can be measured or counted yet, so nothing is claimed."""
+    envelope = envelope_of(runner.invoke(app, ["status"]).stdout)
+
+    assert envelope["data"]["estimated_seconds"] is None

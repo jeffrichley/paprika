@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS recipes (
     total_time TEXT NOT NULL DEFAULT '',
     categories TEXT NOT NULL DEFAULT '[]',
     trashed    INTEGER NOT NULL DEFAULT 0,
+    -- Paprika's opaque change token for this recipe. Not a content digest and
+    -- not reproducible here; useful only for equality against what we saw last
+    -- time, which is exactly what a refetch diff needs.
+    sync_token TEXT NOT NULL DEFAULT '',
     body       TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS categories (
@@ -45,6 +49,7 @@ CREATE TABLE IF NOT EXISTS meta (
 """
 
 SYNCED_AT = "synced_at"
+CHECKED_AT = "checked_at"
 COUNTERS = "counters"
 
 
@@ -120,12 +125,6 @@ class Mirror:
         """Close the database."""
         self._db.close()
 
-    def begin_library(self) -> None:
-        """Empty the Library, because a cold sync rebuilds rather than merges."""
-        self._db.execute("DELETE FROM recipes")
-        self._db.execute("DELETE FROM categories")
-        self._db.commit()
-
     def put_recipe(self, recipe: dict[str, Any]) -> None:
         """Store one whole recipe, committing immediately.
 
@@ -142,11 +141,11 @@ class Mirror:
         categories = recipe.get("categories") or []
         self._db.execute(
             "INSERT INTO recipes (uid, handle, name, rating, total_time, categories,"
-            " trashed, body) VALUES (?, NULL, ?, ?, ?, ?, ?, ?)"
+            " trashed, sync_token, body) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT(uid) DO UPDATE SET name=excluded.name,"
             " rating=excluded.rating, total_time=excluded.total_time,"
             " categories=excluded.categories, trashed=excluded.trashed,"
-            " body=excluded.body",
+            " sync_token=excluded.sync_token, body=excluded.body",
             (
                 uid,
                 str(recipe.get("name") or ""),
@@ -156,6 +155,7 @@ class Mirror:
                 # What she called deleting. The recipe is still on the wire and
                 # still readable, but it is no longer part of her Library.
                 int(bool(recipe.get("in_trash"))),
+                str(recipe.get("hash") or ""),
                 json.dumps(recipe),
             ),
         )
@@ -198,6 +198,39 @@ class Mirror:
         )
         self._db.commit()
 
+    def recipe_tokens(self) -> dict[str, str]:
+        """Return every mirrored recipe's change token.
+
+        Trashed recipes are included: they are still on the wire, so leaving
+        them out would make the diff refetch them on every single read.
+
+        Returns:
+            dict[str, str]: uid to the token we last saw for it.
+        """
+        return {
+            row["uid"]: row["sync_token"]
+            for row in self._db.execute("SELECT uid, sync_token FROM recipes")
+        }
+
+    def forget_recipes(self, uids: Iterable[str]) -> int:
+        """Drop recipes that have vanished from Paprika.
+
+        Deletion leaves no tombstone — a removed recipe is simply absent from
+        the collection — so absence is the only evidence there will ever be.
+
+        Args:
+            uids: The uids to drop.
+
+        Returns:
+            int: How many rows were dropped.
+        """
+        rows = [(uid,) for uid in uids]
+        if not rows:
+            return 0
+        cursor = self._db.executemany("DELETE FROM recipes WHERE uid = ?", rows)
+        self._db.commit()
+        return int(cursor.rowcount)
+
     def recipes(self) -> list[MirroredRecipe]:
         """Return the whole Library, ordered by name.
 
@@ -222,6 +255,23 @@ class Mirror:
             )
             for row in rows
         ]
+
+    def uid_for(self, handle: str) -> str | None:
+        """Return the identity behind a handle.
+
+        The one place a handle turns back into the mechanic it was derived from,
+        and it stays inside the core.
+
+        Args:
+            handle: The handle the session holds.
+
+        Returns:
+            str | None: The uid, or ``None`` when the handle is unknown.
+        """
+        row = self._db.execute(
+            "SELECT uid FROM recipes WHERE handle = ?", (handle,)
+        ).fetchone()
+        return str(row["uid"]) if row else None
 
     def recipe_body(self, handle: str) -> dict[str, Any] | None:
         """Return one whole recipe by handle.
@@ -318,6 +368,33 @@ class Mirror:
         """
         self.set_meta(COUNTERS, dict(counters))
         self.set_meta(SYNCED_AT, time.time())
+
+    def counters(self) -> dict[str, int]:
+        """Return Paprika's change counters as they stood at the last check.
+
+        Returns:
+            dict[str, int]: The stored counters, empty when there are none.
+        """
+        stored = self.get_meta(COUNTERS)
+        return dict(stored) if isinstance(stored, dict) else {}
+
+    def mark_checked(self) -> None:
+        """Record that Paprika was just asked whether anything had changed."""
+        self.set_meta(CHECKED_AT, time.time())
+
+    def checked_within(self, seconds: float) -> bool:
+        """Say whether freshness was established recently enough to reuse.
+
+        Args:
+            seconds: How long an answer stays good for.
+
+        Returns:
+            bool: Whether the last check is still inside that window.
+        """
+        stamp = self.get_meta(CHECKED_AT)
+        if not isinstance(stamp, (int, float)):
+            return False
+        return (time.time() - float(stamp)) < seconds
 
     def age_seconds(self) -> float | None:
         """Return how long ago the Mirror was last filled.

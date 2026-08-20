@@ -22,8 +22,9 @@ from paprika_core.errors import Code, PaprikaError
 STATE_FILENAME = "state.toml"
 ENV_FILENAME = ".env"
 MIRROR_FILENAME = "cache.sqlite3"
-USDA_FILENAME = "usda.sqlite3"
+UNDO_FILENAME = "undo.sqlite3"
 MEMO_FILENAME = "nutrition.sqlite3"
+USDA_FILENAME = "usda.sqlite3"
 LOG_DIRNAME = "logs"
 
 
@@ -84,6 +85,18 @@ def memo_path() -> Path:
         Path: ``<home>/nutrition.sqlite3``.
     """
     return home() / MEMO_FILENAME
+
+
+def undo_path() -> Path:
+    """Return the path of the Pre-image store.
+
+    Deliberately not the Mirror's file. The Mirror is disposable; an undo
+    history is precious, and the two must not share a fate.
+
+    Returns:
+        Path: ``<home>/undo.sqlite3``.
+    """
+    return home() / UNDO_FILENAME
 
 
 def _parse_env(text: str) -> dict[str, str]:

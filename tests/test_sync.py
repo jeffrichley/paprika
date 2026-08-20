@@ -6,11 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from paprika_core import store, sync
+from paprika_core import freshness, store, sync
 from paprika_core.mirror import Mirror
 from paprika_core.session import sign_in
 from tests.fake_paprika import FakePaprika
-from tests.library import LIBRARY_SIZE
+from tests.helpers import a_while_later
+from tests.library import LIBRARY_SIZE, sync_hash
 
 
 def test_a_cold_sync_costs_one_request_per_recipe(
@@ -73,3 +74,55 @@ def test_a_stub_with_no_identity_is_skipped(
     sync.cold_sync(sign_in(), mirror)
 
     assert mirror.count_recipes() == LIBRARY_SIZE
+
+
+def test_trashed_recipes_arrive_and_are_filtered_here(
+    signed_in: Path, seeded: FakePaprika, mirror: Mirror
+) -> None:
+    """`in_trash` is not removal, so the Mirror filters rather than expects absence."""
+    trashed = next(uid for uid, r in seeded.recipes.items() if r["in_trash"])
+
+    sync.cold_sync(sign_in(), mirror)
+
+    # It was downloaded — one request per recipe, trashed ones included.
+    assert any(trashed in path for _, path in seeded.requests)
+    # And it is held, so a later un-trash costs nothing and undo has something.
+    assert trashed in mirror.recipe_tokens()
+    # But it is not in her Library.
+    assert mirror.count_recipes() == LIBRARY_SIZE
+
+
+def test_a_recipe_she_trashed_on_her_phone_leaves_the_library(
+    signed_in: Path, seeded: FakePaprika, mirror: Mirror
+) -> None:
+    sync.cold_sync(sign_in(), mirror)
+    a_while_later(mirror)
+    victim = next(uid for uid, r in seeded.recipes.items() if not r["in_trash"])
+    seeded.recipes[victim]["in_trash"] = True
+    seeded.recipes[victim]["hash"] = sync_hash("trashed-now")
+    seeded.counters["recipes"] += 1
+
+    freshness.ensure_current(sign_in(), mirror)
+
+    assert mirror.count_recipes() == LIBRARY_SIZE - 1
+
+
+def test_an_interrupted_sync_resumes_rather_than_restarting(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """Stopping is cheap. Re-running must not re-download what already landed."""
+
+    def stop_after_two(done: int, total: int) -> None:
+        if done == 2:
+            raise KeyboardInterrupt
+
+    with Mirror(store.mirror_path()) as first, pytest.raises(KeyboardInterrupt):
+        sync.cold_sync(sign_in(), first, progress=stop_after_two)
+
+    seeded.requests.clear()
+    with Mirror(store.mirror_path()) as second:
+        assert sync.cold_sync(sign_in(), second) == LIBRARY_SIZE
+
+    fetched = [p for m, p in seeded.requests if m == "GET" and "/sync/recipe/" in p]
+    # Five recipes in the account, two already held: three left to fetch.
+    assert len(fetched) == len(seeded.recipes) - 2

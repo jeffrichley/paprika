@@ -59,7 +59,7 @@ def test_there_is_no_bulk_recipe_endpoint(signed_in: Path, seeded: FakePaprika) 
 def test_the_plural_recipes_route_is_a_500(signed_in: Path) -> None:
     """``/sync/recipes/`` is the web clipper's scraper, not a bulk write."""
     with pytest.raises(PaprikaError):
-        PaprikaClient(token=TOKEN).post_object("/api/v2/sync/recipes/", [], "writing")
+        PaprikaClient(token=TOKEN)._post_object("/api/v2/sync/recipes/", [], "writing")
 
 
 def test_there_is_no_delete_verb(fake: FakePaprika) -> None:
