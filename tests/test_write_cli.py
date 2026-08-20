@@ -292,7 +292,7 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
     assert _commands_at("write", "profile") == {"set"}
     # Reading her household changes nothing, so it stays outside the prefix.
     assert _commands_at("profile") == {"show"}
-    assert _commands_at("write", "recipe") == {"set", "trash"}
+    assert _commands_at("write", "recipe") == {"set", "create", "trash"}
     # Reading what could be put back changes nothing, so it stays outside.
     assert _commands_at("undo") == {"list"}
     # And the reads are reads.

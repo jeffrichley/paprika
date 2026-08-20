@@ -337,7 +337,16 @@ NEVER_SAID = (
     "cache",
     "tier",
     "provenance",
-    "200",
+)
+
+#: `200` was on the prototype's list because an HTTP status must never reach
+#: her. A bare `200` is not that, though — an oven runs at 200°C, and banning
+#: the number outright would make every recipe example unwritable. So the check
+#: is for a status being *said*, which is what the rule was ever about.
+STATUS_SAID = re.compile(
+    r"\b(?:http\s*)?(?:status|code)\s*[:=]?\s*[1-5]\d\d\b"
+    r"|\b[1-5]\d\d\s*(?:ok|no content|not found|server error)\b",
+    re.IGNORECASE,
 )
 
 
@@ -359,6 +368,10 @@ def test_no_skill_says_any_of_the_words_the_prototype_never_needed() -> None:
                 for word in NEVER_SAID
                 if word in words
             ]
+            if STATUS_SAID.search(prose):
+                offenders.append(
+                    f"{skill.parent.name}: a status in {line.strip()[:60]!r}"
+                )
 
     assert not offenders, "a mechanic word reached the session:\n" + "\n".join(
         offenders
@@ -420,7 +433,7 @@ def test_the_outstanding_skills_are_the_ones_whose_tickets_are_open() -> None:
     """
     outstanding = set(ROSTER) - _present()
 
-    assert outstanding == {"add-recipe", "edit-recipe", "nutrition"}
+    assert outstanding == {"edit-recipe", "nutrition"}
 
 
 def test_the_meta_skill_is_never_something_she_types() -> None:

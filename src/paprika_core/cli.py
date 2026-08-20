@@ -1001,6 +1001,55 @@ def write_recipe_set(
     _run(attempted, work)
 
 
+@write_recipe_app.command("create")
+def write_recipe_create(
+    set_: Annotated[list[str] | None, typer.Option("--set", help="field=value")] = None,
+    add: Annotated[
+        list[str] | None, typer.Option("--add", help="categories=Name")
+    ] = None,
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Save a new recipe.
+
+    Built from the core's own blank rather than from anything a caller supplied,
+    so a create obeys the same rule as an edit: fields may be filled in, and may
+    never be chosen.
+
+    Args:
+        set_: Fields to fill in.
+        add: Categories to file it under, by name.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "saving a new recipe"
+
+    def work() -> Envelope:
+        patch = Patch.parse(sets=set_ or [], adds=add or [])
+        with Mirror(store.mirror_path()) as mirror:
+            categories = {
+                name.casefold(): uid for uid, name in mirror.category_names().items()
+            }
+        mutate = patch.as_mutation({"categories": categories})
+
+        client = sign_in()
+        try:
+            with undo.open_run(run) as opened:
+                _uid, name = write.create(client, mutate, run=opened)
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "saved": name},
+        )
+
+    _run(attempted, work)
+
+
 @write_recipe_app.command("trash")
 def write_recipe_trash(
     handle: str,
