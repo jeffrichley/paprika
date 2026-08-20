@@ -34,7 +34,7 @@ from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
 from paprika_core.patch import Patch
-from paprika_core.recipes import index_lines
+from paprika_core.recipes import index_lines, rendered, search
 from paprika_core.session import sign_in
 
 app = typer.Typer(
@@ -342,6 +342,65 @@ def recipe_index(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
                 "mirror_age_seconds": round(checked.age_seconds or 0),
             }
         return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@recipe_app.command("get")
+def recipe_get(
+    handles: Annotated[list[str], typer.Argument(help="Which recipes.")],
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Read whole recipes, to judge them on more than their titles.
+
+    Args:
+        handles: Which recipes. Several at once, because a shortlist is pulled
+            in one go rather than a round trip at a time.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "reading a recipe"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            found = [(handle, rendered(mirror, handle)) for handle in handles]
+        missing = [handle for handle, recipe in found if recipe is None]
+        if missing:
+            raise PaprikaError(
+                Code.NOTHING_MIRRORED,
+                "That isn't a recipe we know about.",
+                detail=f"unknown handles: {missing}",
+            )
+        recipes = [recipe for _handle, recipe in found if recipe is not None]
+        data: dict[str, Any] = {"recipes": recipes}
+        # One asked for is one handed back, rather than a list of one to unwrap.
+        if len(recipes) == 1:
+            data["recipe"] = recipes[0]
+        return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@recipe_app.command("search")
+def recipe_search(
+    term: Annotated[str, typer.Argument(help="A word to look for.")],
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Find recipes whose text contains a word.
+
+    For the one question the whole-library index cannot answer — an ingredient
+    across every recipe without fetching any of them. It matches text and
+    nothing else: there is no score here, and a near miss is not a hit.
+
+    Args:
+        term: A word to look for.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "looking through your recipes"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            found = search(mirror, term)
+        return succeeded(attempted, data={"recipes": found, "count": len(found)})
 
     _run(attempted, work)
 

@@ -199,3 +199,37 @@ def test_a_skill_only_reaches_paprika_through_the_command() -> None:
         body = skill.read_text(encoding="utf-8").casefold()
         assert "paprikaapp.com" not in body
         assert "/api/v2/" not in body
+
+
+#: A similarity score is a second judge competing with the model — a confident
+#: number with no Provenance behind it, and no honest way to show her why a
+#: vector thought a dish was mild. The decision is that none exists; this is
+#: what stops one arriving quietly with a dependency.
+SECOND_JUDGE = (
+    "embedding",
+    "vector store",
+    "vectorstore",
+    "faiss",
+    "chromadb",
+    "sentence-transformers",
+    "cosine_similarity",
+    "similarity_score",
+)
+
+
+def test_nothing_scores_a_recipe_against_a_query() -> None:
+    """No embedding, no vector store, no similarity score, anywhere."""
+    offenders: list[str] = []
+    for module in sorted((REPO / "src").glob("**/*.py")):
+        text = module.read_text(encoding="utf-8").casefold()
+        offenders += [f"{module.name}: {word}" for word in SECOND_JUDGE if word in text]
+
+    assert not offenders, "a second judge appeared:\n" + "\n".join(offenders)
+
+
+def test_no_dependency_brings_a_second_judge_with_it() -> None:
+    """The likeliest way one arrives is as somebody's convenient library."""
+    locked = (REPO / "uv.lock").read_text(encoding="utf-8").casefold()
+
+    for package in ("faiss", "chromadb", "sentence-transformers", "pgvector"):
+        assert f'name = "{package}"' not in locked, f"{package} is in the lockfile"
