@@ -182,7 +182,7 @@ def test_the_scan_is_not_what_produces_the_health_report() -> None:
     """The report is arithmetic; the agent is dispatched once she picks a job."""
     front = _frontmatter(REPO / "agents" / "library-scan.md")
 
-    assert "never to produce the report itself" in front["description"]
+    assert "never to produce the library health report itself" in front["description"]
 
 
 def test_the_console_script_is_declared() -> None:
@@ -441,7 +441,7 @@ def test_the_meta_skill_is_never_something_she_types() -> None:
         .split("---", 2)[1]
     )
 
-    assert "does not need invoking" in front
+    assert "never needs invoking" in front
 
 
 def test_the_hook_is_wired_for_the_three_session_starts() -> None:
@@ -457,3 +457,32 @@ def test_the_hook_script_is_executable() -> None:
     script = REPO / "hooks" / "session-start.sh"
 
     assert script.stat().st_mode & 0o111
+
+
+def test_no_rule_carries_an_exception_that_reopens_it() -> None:
+    """`Never X unless Y` invites the negotiation the rule was meant to end.
+
+    A real exception belongs as its own conditional on something observable —
+    `X only when Y` — rather than hanging off the rule it undoes.
+    """
+    negotiable = re.compile(
+        r"(?:never|don't|do not|always)[^.]{0,60}\b(?:unless|except when)\b",
+        re.IGNORECASE,
+    )
+    offenders = [
+        f"{path.parent.name}: {line.strip()[:70]}"
+        for path in _skill_prose()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if negotiable.search(line)
+    ]
+
+    assert not offenders, "a rule reopened itself:\n" + "\n".join(offenders)
+
+
+def test_no_description_assumes_who_installed_this() -> None:
+    """A description is read about whoever is using it, not about one cook."""
+    for path in [*_skill_files(), *sorted((REPO / "agents").glob("*.md"))]:
+        front = path.read_text(encoding="utf-8").split("---", 2)[1]
+        description = front.split("description:", 1)[1].split("\n")[0]
+        words = set(re.findall(r"[a-z]+", description.casefold()))
+        assert not words & {"her", "she", "hers"}, path.parent.name

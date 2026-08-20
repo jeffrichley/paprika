@@ -15,12 +15,27 @@ Say the handful that are actually useful to her, in her words:
 > a link, find something you half-remember, and tidy up a library that's got
 > messy. Just say what you want in your own words.
 
+## What the answer is made of
+
+Say these parts, in this order:
+
+1. **Four or five jobs**, chosen for what she just said, in her words.
+2. **One sentence telling her she can just say what she wants**, in her own
+   words, rather than learn anything.
+
+Two parts. That is the whole answer.
+
+If she asked about one specific thing, part one is **that thing**, and there is
+no part two — answer what she asked and stop.
+
+If setup is not finished, the answer is instead one sentence saying so and
+naming `/paprika:setup`.
+
 ## Rules
 
-- **Never list command names.** She does not type them and should not learn them.
-- **Never enumerate all eleven jobs.** Four or five, chosen for her.
-- **If she asked about one thing, answer that**, and stop. Do not tour.
-- **If setup is not finished, say so once** and point at `/paprika:setup`.
+- **Never name a command.** She does not type them and should not learn them.
+- **Never list all eleven jobs.**
+- **Never tour what you can do after answering a specific question.**
 - **If something is genuinely not possible, say so plainly** rather than
   offering the nearest thing as though it were what she asked for.
 

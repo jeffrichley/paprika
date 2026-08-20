@@ -67,6 +67,16 @@ one line, not retyping the list.
   the source did not say.
 - **If she wants it gone, that is trash**, and say it is recoverable in her app.
 
+## When you are about to break one of those
+
+| The thought | What is actually true |
+|---|---|
+| "The ingredients are messy, I'll tidy them while I'm here" | She cooks from those words. Change what she named. |
+| "The prep time is obviously about 15 minutes" | Blank means the source didn't say. A guess looks like a fact. |
+| "Sending the whole recipe back is safer" | The write already carries everything. Naming extra fields is the risk, not the safety. |
+| "She said delete it" | Trash it. She can undo that herself, in her own app. |
+| "It's one small formatting fix" | This is the operation that wiped five fields off every recipe in a shipping tool. |
+
 ## Common mistakes
 
 | Mistake | Instead |

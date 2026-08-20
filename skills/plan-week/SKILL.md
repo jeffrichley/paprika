@@ -39,28 +39,29 @@ on ingredients rather than titles.
 **If the allergy line is absent, nobody has been asked.** That is not the same
 as none. Ask before drafting anything that could go wrong.
 
-## Draft it once, properly
+## What the draft is made of
 
 One pass, holding the whole week in mind — not a quick draft you then improve.
 Cooking judgement is applied *while* drafting, not afterwards.
 
-Show it as a table she can read at a glance, and say **nothing is saved yet**.
+Say these parts, in this order:
 
-Give a short reason only where one is useful — *"Thursday's fast so this is a
-traybake"*, *"you had the chilli last week"*. Not a reason per night; that reads
-like a machine justifying itself.
+1. **Which days you planned**, stated rather than asked.
+2. **The week as a table** she can read at a glance, one row per night.
+3. **A short reason on the nights where one helps** — *"Thursday's fast so this
+   is a traybake"*, *"you had the chilli last week"*. Not one per night; that
+   reads like a machine justifying itself.
+4. **One line saying nothing is saved yet.**
 
-## When nothing fits
-
-**Leave the night empty and say why in one line.** Then offer two or three
-short options so the gap is a choice rather than a dead end.
+A night nothing fits gets, in its own row: **the word empty, one line of why,
+and two or three short options.**
 
 > **Wed 26** — *empty*. Everything quick enough for a fast night, you've had in
 > the last fortnight. Could do: eggs on toast, a shop-bought pizza, or I could
 > find something new.
 
-Do not fill a night by lowering the bar. An empty night with an honest reason is
-the moment she learns the drafts can be trusted.
+An empty night with an honest reason is the moment she learns the drafts can be
+trusted. Filling it by lowering the bar is what costs that.
 
 ## Changing a night
 
@@ -68,7 +69,7 @@ She says *"not Tuesday, we're out"* or *"swap Wednesday for something lighter"*.
 Redraft that night and show it. It is the same whether or not the plan has been
 saved yet — a saved plan is changed with the same sentence.
 
-Do not re-show the whole week for one change unless she asks.
+Show the night that changed. Show the whole week again only if she asks for it.
 
 ## Saving it
 

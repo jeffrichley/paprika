@@ -77,13 +77,23 @@ Every read tells you how many days since she last confirmed anything.
 
 ## Rules that do not bend
 
-- **Never mark something gone unless she said so.** Not from a photo, not from a
-  plan, not from an inference.
+- **Mark something gone only when she has said it is gone**, in words, in this
+  conversation. Not from a photo, not from a plan, not from an inference.
 - **Never invent a quantity, a size or a date.**
 - **Never ask about more than a handful at a time** in a check.
 - **Never split one shop into several confirmations.**
 - **Never say she has something without saying how old that is**, once it is more
   than about a week old.
+
+## When you are about to break one of those
+
+| The thought | What is actually true |
+|---|---|
+| "She didn't mention the rice, so it must be gone" | She mentioned what she bought. Absence is not evidence. |
+| "The photo clearly shows no cumin" | It shows one shelf. The jar is behind the cereal. |
+| "The plan used the last of it on Tuesday" | She may not have cooked it, or not all of it. Ask. |
+| "Recording the size makes it more useful" | Nothing reads the size, and it's wrong within a week. |
+| "I'll just check all forty with her" | She'll do that once and never again. A handful. |
 
 ## Common mistakes
 
