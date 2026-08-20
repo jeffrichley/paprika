@@ -17,7 +17,17 @@ from typing import Annotated, Any
 
 import typer
 
-from paprika_core import bulk, freshness, pace, setup, store, sync, undo, write
+from paprika_core import (
+    bulk,
+    freshness,
+    pace,
+    profile,
+    setup,
+    store,
+    sync,
+    undo,
+    write,
+)
 from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
@@ -48,6 +58,11 @@ write_app.add_typer(write_recipe_app, name="recipe")
 # prefix. Actually putting it back is a write like any other, and sits inside.
 undo_app = typer.Typer(no_args_is_help=True, help="What could be put back.")
 app.add_typer(undo_app, name="undo")
+
+profile_app = typer.Typer(no_args_is_help=True, help="Read your household.")
+app.add_typer(profile_app, name="profile")
+write_profile_app = typer.Typer(no_args_is_help=True, help="Change your household.")
+write_app.add_typer(write_profile_app, name="profile")
 
 _HUMAN = False
 
@@ -573,6 +588,79 @@ def undo_list() -> None:
             for summary in undo.recent_runs()
         ]
         return succeeded(attempted, data={"runs": runs})
+
+    _run(attempted, work)
+
+
+@profile_app.command("show")
+def profile_show() -> None:
+    """Report the standing facts a plan is drawn against."""
+    attempted = "reading your household"
+
+    def work() -> Envelope:
+        read = profile.read()
+        data: dict[str, Any] = {
+            # Nothing here claims anything when the file could not be read.
+            # Silence about a safety fact must not look like an all-clear.
+            "readable": read.readable,
+            "allergies_answered": read.allergies_answered,
+            "allergies": list(read.allergies),
+            "people": {
+                name: {"dislikes": list(person.dislikes), "loves": list(person.loves)}
+                for name, person in read.people.items()
+            },
+            "household_size": read.household_size,
+            "fast_nights": list(read.fast_nights),
+            "away": list(read.away),
+            "targets": dict(read.targets),
+        }
+        return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@write_profile_app.command("set")
+def write_profile_set(
+    changes: Annotated[
+        list[str] | None,
+        typer.Argument(help="path=value, path+=value or path-=value."),
+    ] = None,
+    none: Annotated[
+        bool,
+        typer.Option(
+            "--no-allergies",
+            help="Record that the household has none, which is an answer.",
+        ),
+    ] = False,
+) -> None:
+    """Change one standing fact about the household.
+
+    A path expression rather than a file, for the same reason a recipe write
+    takes a patch rather than an object: if this accepted a whole household
+    file, the comments she wrote in it would be one careless caller away from
+    gone.
+
+    Args:
+        changes: The named changes to apply.
+        none: Record that there are no allergies at all.
+    """
+    attempted = "noting something about your household"
+
+    def work() -> Envelope:
+        named = changes or []
+        if not named and not none:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "Nothing was asked for, so nothing was noted.",
+                detail="empty profile write",
+            )
+        if none:
+            profile.record_no_allergies()
+        for change in named:
+            profile.apply(change)
+        # Her household is hers, and it is not her Paprika library — so nothing
+        # of Paprika's moved, and `changed` says so.
+        return succeeded(attempted, data={"noted": named})
 
     _run(attempted, work)
 

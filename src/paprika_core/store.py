@@ -20,6 +20,18 @@ import tomlkit
 from paprika_core.errors import Code, PaprikaError
 
 STATE_FILENAME = "state.toml"
+
+#: Every file here that is not hers says so, so that the one hand-editable file
+#: is identifiable by opening it rather than by remembering which one it was.
+STATE_HEADER = """\
+# paprika — machine state
+#
+# This file belongs to the program and is rewritten without warning. There is
+# nothing here worth changing by hand, and a change you make may not survive.
+#
+# Your household — who lives here, allergies, what people like — is in
+# profile.toml next door, which is yours and keeps its comments.
+"""
 ENV_FILENAME = ".env"
 MIRROR_FILENAME = "cache.sqlite3"
 UNDO_FILENAME = "undo.sqlite3"
@@ -195,7 +207,10 @@ def write_state(document: tomlkit.TOMLDocument) -> None:
     """
     ensure_home()
     path = home() / STATE_FILENAME
-    path.write_text(tomlkit.dumps(document), encoding="utf-8")
+    body = tomlkit.dumps(document)
+    if not body.lstrip().startswith("#"):
+        body = STATE_HEADER + "\n" + body
+    path.write_text(body, encoding="utf-8")
     path.chmod(0o600)
 
 
