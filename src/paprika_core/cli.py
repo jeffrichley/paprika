@@ -23,6 +23,7 @@ from paprika_core import (
     freshness,
     groceries,
     health,
+    intake,
     pace,
     pantry,
     plan,
@@ -750,6 +751,120 @@ def health_report(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
                 "tidy": health.is_tidy(findings),
             },
         )
+
+    _run(attempted, work)
+
+
+intake_app = typer.Typer(
+    no_args_is_help=True, help="Drafts read out of files, before they are recipes."
+)
+app.add_typer(intake_app, name="intake")
+
+
+@intake_app.command("save")
+def intake_save(
+    source: Annotated[str, typer.Option("--source", help="The file it came from.")],
+    set_: Annotated[list[str] | None, typer.Option("--set", help="field=value")] = None,
+    gap: Annotated[
+        list[str] | None, typer.Option("--gap", help="A line that could not be read.")
+    ] = None,
+    unusable: Annotated[
+        str | None,
+        typer.Option("--unusable", help="Why there is no draft, when there is none."),
+    ] = None,
+) -> None:
+    """Write one draft, immediately.
+
+    Outside the write prefix on purpose: a draft moves nothing of hers, which is
+    what lets the Reader hold no write tool and still have somewhere to put what
+    it read. A draft becomes a recipe only through the chokepoint, on her yes.
+
+    Args:
+        source: The file it came from.
+        set_: What was on the page.
+        gap: Lines that could not be read.
+        unusable: Why there is no draft.
+    """
+    attempted = "keeping what was read"
+
+    def work() -> Envelope:
+        fields: dict[str, str] = {}
+        for raw in set_ or []:
+            name, _, value = raw.partition("=")
+            if not _:
+                raise PaprikaError(
+                    Code.REFUSED_LOCALLY,
+                    "That wasn't written in a way we could keep.",
+                    detail=f"expected field=value, got {raw!r}",
+                )
+            fields[name.strip()] = value
+        draft = intake.save(source, fields, tuple(gap or []), unusable)
+        # Nothing of hers moved: a draft is ours and disposable.
+        return succeeded(
+            attempted,
+            data={"source": draft.source, "usable": draft.unusable is None},
+        )
+
+    _run(attempted, work)
+
+
+@intake_app.command("list")
+def intake_list() -> None:
+    """Report the drafts read so far, oldest first."""
+    attempted = "reading what has been drafted"
+
+    def work() -> Envelope:
+        drafts = [
+            {
+                "source": draft.source,
+                "name": draft.fields.get("name", ""),
+                "gaps": list(draft.gaps),
+                "unusable": draft.unusable,
+            }
+            for draft in intake.waiting()
+        ]
+        return succeeded(
+            attempted,
+            data={
+                "drafts": drafts,
+                "count": len(drafts),
+                # The clean ones first is the skill's business; this says which
+                # are which so it does not have to guess.
+                "clean": sum(1 for d in drafts if not d["gaps"] and not d["unusable"]),
+            },
+        )
+
+    _run(attempted, work)
+
+
+@intake_app.command("done")
+def intake_done(
+    source: Annotated[
+        str | None, typer.Option("--source", help="One draft, by its file.")
+    ] = None,
+    everything: Annotated[
+        bool, typer.Option("--all", help="Every draft, because the walk ended.")
+    ] = False,
+) -> None:
+    """Forget drafts that have been dealt with.
+
+    Args:
+        source: One draft, by the file it came from.
+        everything: Every draft.
+    """
+    attempted = "clearing what has been dealt with"
+
+    def work() -> Envelope:
+        if everything:
+            return succeeded(attempted, data={"dropped": intake.clear()})
+        if not source:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "Say which one, or say all of them.",
+                detail="neither --source nor --all",
+            )
+        intake.done(source)
+        return succeeded(attempted, data={"dropped": 1})
 
     _run(attempted, work)
 
