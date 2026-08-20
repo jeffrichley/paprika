@@ -125,6 +125,24 @@ def mismatch_lines(root: Path) -> list[str]:
     ]
 
 
+def on_day(when: dt.date) -> str:
+    """Render a date the way a person says it out loud.
+
+    ``%-d`` gives a day with no leading zero on glibc and BSD, and raises
+    ``ValueError`` on Windows; ``%#d`` is the reverse. There is no portable
+    directive for it, so the day comes from :attr:`datetime.date.day` and
+    strftime is only asked for the parts every platform agrees on.
+
+    Args:
+        when: The date.
+
+    Returns:
+        str: Something like ``Mon 7 Sep`` — no leading zero, because
+            ``Mon 07 Sep`` reads like a serial number rather than a day.
+    """
+    return f"{when:%a} {when.day} {when:%b}"
+
+
 def _plan_lines(today: dt.date) -> list[str]:
     """Return what is planned over the coming week, with literal dates.
 
@@ -145,9 +163,9 @@ def _plan_lines(today: dt.date) -> list[str]:
     except Exception:
         return []
     if not meals:
-        return [f"Plan for {today:%a %-d %b}–{until:%a %-d %b}: none."]
-    return [f"Plan for {today:%a %-d %b}–{until:%a %-d %b}:"] + [
-        f"  {dt.date.fromisoformat(meal.date):%a %-d %b}: {meal.name}" for meal in meals
+        return [f"Plan for {on_day(today)}–{on_day(until)}: none."]
+    return [f"Plan for {on_day(today)}–{on_day(until)}:"] + [
+        f"  {on_day(dt.date.fromisoformat(meal.date))}: {meal.name}" for meal in meals
     ]
 
 
@@ -244,7 +262,19 @@ def build(root: Path, today: dt.date | None = None) -> str:
         body = _fence(root)
         state = mismatch_lines(root) + facts(today)
     except Exception:
-        body, state = _fence(root), []
+        # The fence still goes out: a session holding the rules and none of the
+        # facts is worth far more than no session at all. But saying nothing is
+        # how a whole platform lost this block without anyone noticing, so the
+        # gap is named — a machine with nothing planned must not look the same
+        # as a machine that could not work out what it had.
+        body = _fence(root)
+        state = [
+            "What this machine holds could not be read, so nothing below is "
+            "known this session — not the plan, not the pantry, not the "
+            "allergies. Her recipes in Paprika are untouched. Ask before "
+            "assuming any of it, and treat /paprika:help as the next step if "
+            "she notices."
+        ]
     block = [body] if body else []
     if state:
         block.append("## Paprika state\n\n" + "\n".join(state))
