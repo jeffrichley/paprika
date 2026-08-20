@@ -23,6 +23,8 @@ STATE_FILENAME = "state.toml"
 ENV_FILENAME = ".env"
 MIRROR_FILENAME = "cache.sqlite3"
 UNDO_FILENAME = "undo.sqlite3"
+MEMO_FILENAME = "nutrition.sqlite3"
+USDA_FILENAME = "usda.sqlite3"
 LOG_DIRNAME = "logs"
 
 
@@ -56,6 +58,33 @@ def mirror_path() -> Path:
         Path: ``<home>/cache.sqlite3``. Disposable — it is only ever a copy.
     """
     return home() / MIRROR_FILENAME
+
+
+def usda_index_path() -> Path:
+    """Return the path of the materialised USDA index.
+
+    It lives here rather than beside the installed package because the plugin
+    lives in a versioned directory that changes on upgrade: a home-relative path
+    means the index is built once per machine rather than once per version.
+
+    Returns:
+        Path: ``<home>/usda.sqlite3``. Disposable — it rebuilds from the
+            bundled data.
+    """
+    return home() / USDA_FILENAME
+
+
+def memo_path() -> Path:
+    """Return the path of the nutrition memos.
+
+    Deliberately a different file from :func:`usda_index_path`, so rebuilding
+    the index — which is cheap and routine — cannot destroy the memos, which are
+    expensive and not reproducible from anything on disk.
+
+    Returns:
+        Path: ``<home>/nutrition.sqlite3``.
+    """
+    return home() / MEMO_FILENAME
 
 
 def undo_path() -> Path:

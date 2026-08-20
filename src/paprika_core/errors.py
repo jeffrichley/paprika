@@ -55,4 +55,6 @@ class Code(StrEnum):
     NOTHING_MIRRORED = "nothing_mirrored"
     REFUSED_LOCALLY = "refused_locally"
     NOTHING_TO_UNDO = "nothing_to_undo"
+    NUTRIENT_UNSUPPORTED = "nutrient_unsupported"
+    NUTRITION_DATA_MISSING = "nutrition_data_missing"
     UNEXPECTED = "unexpected"

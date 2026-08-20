@@ -1,0 +1,37 @@
+NLTK part-of-speech tagger, bundled so that reading an ingredient line never
+touches the network.
+
+  taggers/averaged_perceptron_tagger_eng.zip
+  1,539,115 bytes
+  md5    729e2255f83045670374180de9bdb613
+  sha256 6025f530624335c67d6547d44757b357b4e79bae030a0383e9887a92c1718f0b
+
+Downloaded from the NLTK data index and verified against the checksum that
+index publishes for it:
+
+  https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/taggers/averaged_perceptron_tagger_eng.zip
+
+WHY IT IS HERE
+
+`ingredient-parser-nlp` needs this resource to parse a line. NLTK does not ship
+it with the library; the parser looks for it and, not finding it, calls
+`nltk.download`. That is a silent 1.5 MB fetch on a home cook's machine the
+first time she asks about nutrition, and a hard failure if she is offline or
+behind a firewall — the same problem bundling the USDA data exists to avoid.
+`paprika_core.nutrition.parsing` prepends this directory to `nltk.data.path`
+before importing the parser, so this copy is used and the downloader is never
+reached.
+
+LICENCE
+
+The NLTK data index declares this package as **MIT License**, webpage
+https://github.com/sloria/textblob-aptagger — Steven Loria's packaging of the
+averaged perceptron tagger described by Matthew Honnibal. The MIT licence
+permits redistribution with its notice preserved; the package ships no licence
+file of its own, so this record stands in its place, and the fields above are
+reproduced verbatim from the index entry rather than asserted by us.
+
+The NLTK library itself is separate from this data and is Apache 2.0.
+
+  Bird, Steven, Edward Loper and Ewan Klein (2009).
+  Natural Language Processing with Python. O'Reilly Media Inc.
