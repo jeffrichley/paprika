@@ -6,9 +6,11 @@ tested here rather than being the one thing nobody can check.
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -470,3 +472,96 @@ def test_the_primer_command_returns_no_envelope(paprika_home: Path) -> None:
     result = runner.invoke(app, ["primer", "--root", str(REPO)])
 
     assert '"ok"' not in result.stdout
+
+
+# --- Dates that render on every platform -------------------------------------
+#
+# #80: `%-d` is a glibc/BSD extension. Windows' C runtime raises ValueError on
+# it, which took out the whole facts block on a real machine. None of this can
+# be caught by running the suite on Linux and macOS, so the guard below scans
+# for the directive rather than waiting to execute it.
+
+
+def _docstrings(tree: ast.AST) -> set[int]:
+    """Return the id of every string node that is a docstring.
+
+    Args:
+        tree: A parsed module.
+
+    Returns:
+        set[int]: Node ids to ignore. A docstring has to be able to name the
+            directive it is warning about.
+    """
+    found = set()
+    for node in ast.walk(tree):
+        if not isinstance(
+            node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
+        ):
+            continue
+        first = node.body[0] if node.body else None
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            found.add(id(first.value))
+    return found
+
+
+def test_no_date_is_rendered_with_a_platform_specific_directive() -> None:
+    """`%-d` and `%#d` each work on exactly the platforms the other does not.
+
+    There is no portable strftime directive for a day without a leading zero,
+    so the only safe answer is not to ask strftime for one.
+
+    Read off the **syntax tree**, not the text. Prose must be free to name the
+    directive, and — the reason this is not a tokenizer — an f-string's format
+    spec is where the directive actually lives, and from 3.12 that is not a
+    string token at all. A scan that cannot see `f"{when:%-d}"` is a scan that
+    would have missed #80 itself.
+    """
+    directive = re.compile(r"%[-#][a-zA-Z]")
+    offenders = []
+    for path in sorted((REPO / "src").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        skip = _docstrings(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                continue
+            if id(node) in skip:
+                continue
+            if directive.search(node.value):
+                offenders.append(f"{path.name}:{node.lineno}: {node.value[:60]}")
+
+    assert offenders == []
+
+
+def test_a_single_digit_day_carries_no_leading_zero() -> None:
+    """What `%-d` was there for. `Sun 07 Sep` reads like a serial number."""
+    assert primer.on_day(dt.date(2026, 9, 7)) == "Mon 7 Sep"
+    assert primer.on_day(dt.date(2026, 9, 21)) == "Mon 21 Sep"
+
+
+def test_the_facts_failing_is_said_rather_than_dropped(
+    paprika_home: Path, monkeypatch: Any
+) -> None:
+    """The second half of #80, and the same lesson as #78.
+
+    `build` catches everything so the hook can never fail a session. That is
+    right, and it is also how a Windows machine lost its whole facts block
+    without anything anywhere saying so.
+    """
+    shutil.copytree(REPO / "skills", paprika_home / "skills")
+
+    def explode(*args: Any, **kwargs: Any) -> list[str]:
+        raise ValueError("Invalid format string")
+
+    monkeypatch.setattr(primer, "facts", explode)
+    block = primer.build(paprika_home, TODAY)
+
+    # The fence still arrives — a session with the rules and no facts is worth
+    # far more than no session at all.
+    assert "Never call Paprika's web service directly" in block
+    # But the missing half is named, rather than looking like a machine that
+    # simply has nothing planned.
+    assert "could not be read" in block
