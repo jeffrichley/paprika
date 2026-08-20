@@ -122,20 +122,40 @@ def credentials() -> tuple[str, str]:
 
 
 def read_state() -> tomlkit.TOMLDocument:
-    """Read ``state.toml``, comments and all.
+    """Read ``state.toml``, comments and all, forgiving a broken one.
 
     Returns:
         tomlkit.TOMLDocument: The parsed document, empty when the file is absent
-            or unreadable. A corrupt state file is a state to rebuild, not a
-            reason to fail.
+            or unreadable. A corrupt state file must not fail an ordinary
+            command — but see :func:`read_state_strict` for the one reader that
+            has to tell *broken* apart from *absent*.
+    """
+    return read_state_strict() or tomlkit.document()
+
+
+def read_state_strict() -> tomlkit.TOMLDocument | None:
+    """Read ``state.toml``, saying so when it cannot be read at all.
+
+    The distinction matters exactly once, and it matters a lot: a store that
+    exists but will not parse is a different answer from a store that was never
+    made, and collapsing the two sends a long-standing user back to the
+    beginning.
+
+    Returns:
+        tomlkit.TOMLDocument | None: The parsed document, an empty one when the
+            file is simply absent, or ``None`` when it exists and will not read.
     """
     path = home() / STATE_FILENAME
-    if not path.is_file():
-        return tomlkit.document()
     try:
-        return tomlkit.parse(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return tomlkit.document()
+        if not path.is_file():
+            return tomlkit.document()
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        return tomlkit.parse(text)
+    except ValueError:
+        return None
 
 
 def write_state(document: tomlkit.TOMLDocument) -> None:
@@ -147,6 +167,24 @@ def write_state(document: tomlkit.TOMLDocument) -> None:
     ensure_home()
     path = home() / STATE_FILENAME
     path.write_text(tomlkit.dumps(document), encoding="utf-8")
+    path.chmod(0o600)
+
+
+def write_credentials(email: str, password: str, header: str = "") -> None:
+    """Write ``.env``, replacing whatever was there.
+
+    Replaced rather than appended: a second attempt at setup must not leave the
+    first attempt's password sitting in the file underneath the new one.
+
+    Args:
+        email: Her Paprika account email.
+        password: Her Paprika account password.
+        header: Comment block explaining the file to whoever opens it later.
+    """
+    ensure_home()
+    path = home() / ENV_FILENAME
+    body = f"{header}\nPAPRIKA_EMAIL={email}\nPAPRIKA_PASSWORD={password}\n"
+    path.write_text(body, encoding="utf-8")
     path.chmod(0o600)
 
 

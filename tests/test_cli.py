@@ -208,7 +208,8 @@ def test_status_reports_what_this_machine_has(
     assert_envelope_shape(envelope)
     assert_no_mechanics(envelope)
     assert result.exit_code == 0
-    assert envelope["data"]["set_up"] is True
+    assert envelope["data"]["setup"] == "set_up"
+    assert envelope["data"]["still_to_do"] == []
     assert envelope["data"]["recipes"] == LIBRARY_SIZE
     # The wiring, not the arithmetic — the fake answers instantly, so the
     # measured median is sub-millisecond here. `test_pace.py` owns the maths.
@@ -222,7 +223,7 @@ def test_status_works_before_setup_rather_than_failing(paprika_home: Path) -> No
     envelope = envelope_of(result.stdout)
     assert result.exit_code == 0
     assert envelope["ok"] is True
-    assert envelope["data"]["set_up"] is False
+    assert envelope["data"]["setup"] == "never_set_up"
     assert envelope["data"]["mirror_age_seconds"] is None
 
 
@@ -333,6 +334,7 @@ def test_status_estimates_the_first_download_before_it_happens(
     signed_in: Path, seeded: FakePaprika
 ) -> None:
     """The one moment the estimate matters, and the Mirror cannot supply the count."""
+    runner.invoke(app, ["login"])
     result = runner.invoke(app, ["status"])
 
     envelope = envelope_of(result.stdout)

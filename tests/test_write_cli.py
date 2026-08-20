@@ -260,7 +260,17 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
     """
     # `sync` is deliberately outside the prefix: it moves the Mirror, not her
     # data, and a prefix that means two things means neither.
-    assert _commands_at() == {"login", "sync", "status", "recipe", "write", "undo"}
+    assert _commands_at() == {
+        "login",
+        "sync",
+        "status",
+        "setup",
+        "recipe",
+        "write",
+        "undo",
+    }
+    # Setup writes to this machine, never to her library, so it stays outside.
+    assert _commands_at("setup") == {"credentials"}
     assert _commands_at("write") == {"recipe", "undo"}
     assert _commands_at("write", "recipe") == {"set", "trash"}
     # Reading what could be put back changes nothing, so it stays outside.
