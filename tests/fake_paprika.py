@@ -172,6 +172,8 @@ class FakePaprika:
     pantry_writes: list[list[dict[str, Any]]] = field(default_factory=list)
     #: Every grocery array that was accepted, in order.
     grocery_writes: list[list[dict[str, Any]]] = field(default_factory=list)
+    #: Every category array that was accepted, in order.
+    category_writes: list[list[dict[str, Any]]] = field(default_factory=list)
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -305,6 +307,8 @@ class FakePaprika:
             return self._post_pantry(request)
         if path == "/api/v2/sync/groceries/":
             return self._post_groceries(request)
+        if path == "/api/v2/sync/categories/":
+            return self._post_categories(request)
         # The plural route is the web clipper's scraper, not a bulk write. Using
         # it to create recipes is a 500.
         if path == "/api/v2/sync/recipes/":
@@ -387,6 +391,32 @@ class FakePaprika:
             by_uid[entry["uid"]] = dict(entry)
         self.groceries = list(by_uid.values())
         self.counters["groceries"] = self.counters.get("groceries", 0) + 1
+        return _result(True)
+
+    def _post_categories(self, request: httpx.Request) -> httpx.Response:
+        """Upsert the posted category array.
+
+        Args:
+            request: The multipart request.
+
+        Returns:
+            httpx.Response: What Paprika would send back.
+        """
+        body = _extract_gzipped_part(request.content)
+        if not isinstance(body, list):
+            return _refused()
+        for entry in body:
+            if not isinstance(entry, dict) or not entry.get("uid"):
+                return _refused()
+        self.category_writes.append([dict(e) for e in body])
+        by_uid = {c["uid"]: c for c in self.categories}
+        for entry in body:
+            if entry.get("deleted"):
+                by_uid.pop(entry["uid"], None)
+            else:
+                by_uid[entry["uid"]] = dict(entry)
+        self.categories = list(by_uid.values())
+        self.counters["categories"] = self.counters.get("categories", 0) + 1
         return _result(True)
 
     def _post_recipe(self, uid: str, request: httpx.Request) -> httpx.Response:

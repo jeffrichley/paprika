@@ -220,6 +220,7 @@ def test_the_raw_post_is_reachable_from_one_module_only() -> None:
         "plan.py",
         "pantry.py",
         "groceries.py",
+        "categories.py",
     }
 
 

@@ -56,9 +56,60 @@ recipes do not belong in her conversation — and returns a proposal.
 
 It cannot write anything. It proposes, she says yes, and you do the writing.
 
-Then run the walk, which is `/paprika:organize`'s other half and is covered by
-the bulk re-filing rules: groups biggest-first, one group shown whole, one yes
-per group, and never a proposal to remove filing she chose.
+Then run the walk.
+
+## What the walk is made of
+
+**Before the first group**, one line stating its length: *"Nine groups, 214
+recipes. Biggest first, so stopping early still gets you the most of it."* The
+Scan produced the whole proposal already, so this costs nothing.
+
+**Each group is one screen**, in this order:
+
+1. **Where they are going**, and how many.
+2. **Every name in the group**, listed. Not a sample, not a count — the names.
+3. **One question.**
+
+> **Weeknight → 34 recipes.** Sheet-pan chicken thighs, black bean tacos,
+> 15-minute carbonara, … *(all 34 listed)*
+> File these under Weeknight?
+
+**Eighty names is one legitimate yes**, and that is not a concession. For
+re-filing, a recipe's *name* is enough to judge by — eighty names are eighty
+words she can read in ten seconds, where eighty recipes would be eighty pages.
+Never split a group into several confirmations, and never ask about them one at
+a time.
+
+**On her yes**, file the group and say what landed — with the undo riding on
+that line rather than as a question of its own:
+
+> Filed 34 under Weeknight. Say the word if you want those put back.
+
+A standalone *"do you want to undo that?"* after a yes she just gave reads as
+the tool doubting her.
+
+**Filed loosely comes second**, always, however big it is. Filing something at a
+root may well have been deliberate, and a hole beats a preference.
+
+**Unmatched recipes are left alone.** Not everything has to go somewhere.
+
+## Three noes
+
+If she turns down three groups, the clustering is wrong and only she knows why.
+Say what you noticed and offer three ways forward:
+
+> That's three you've passed on — I think I'm grouping by cuisine and you file by
+> occasion. Want me to keep going, aim somewhere else, or leave it here?
+
+**Never decide the session is over.** Ending one is an action of consequence and
+it is hers.
+
+## If she stops and comes back
+
+**Re-propose. Never replay.** A stopped walk guarantees a stale picture — the
+groups it had were computed against a library that has since moved, not least
+by the groups she already accepted. Run the health report again, dispatch the
+Scan again, and show her where things stand now.
 
 ## Rules that do not bend
 
