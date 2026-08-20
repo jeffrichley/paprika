@@ -296,12 +296,13 @@ def restore(client: PaprikaClient, pre_image: PreImage, *, run: Run) -> str:
         # Meals and pantry items are posted as arrays and their Pre-images may
         # themselves be removals, so each goes back the way it came rather than
         # through the recipe path.
-        from paprika_core import groceries, pantry, plan
+        from paprika_core import categories, groceries, pantry, plan
 
         collection = {
             "plan": plan.restore,
             "pantry": pantry.restore,
             "groceries": groceries.restore,
+            "categories": categories.restore,
         }
         collection[pre_image.kind](client, pre_image.body)
         run.capture(

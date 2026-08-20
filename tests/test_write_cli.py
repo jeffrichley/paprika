@@ -285,6 +285,7 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
         "plan",
         "pantry",
         "groceries",
+        "category",
     }
     assert _commands_at("write", "groceries") == {"push"}
     assert _commands_at("write", "pantry") == {"add", "confirm", "gone"}

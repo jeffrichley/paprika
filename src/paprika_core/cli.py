@@ -34,6 +34,9 @@ from paprika_core import (
     undo,
     write,
 )
+from paprika_core import (
+    categories as categories_module,
+)
 from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
@@ -59,6 +62,8 @@ write_app = typer.Typer(no_args_is_help=True, help="Change things in Paprika.")
 app.add_typer(write_app, name="write")
 write_recipe_app = typer.Typer(no_args_is_help=True, help="Change a recipe.")
 write_app.add_typer(write_recipe_app, name="recipe")
+write_category_app = typer.Typer(no_args_is_help=True, help="Extend her filing scheme.")
+write_app.add_typer(write_category_app, name="category")
 
 # Reading what could be put back changes nothing, so it stays outside the
 # prefix. Actually putting it back is a write like any other, and sits inside.
@@ -971,6 +976,84 @@ def nutrition_recipe(
     _run(attempted, lambda: succeeded(attempted, data=_rolled("", "", handle)))
 
 
+@write_category_app.command("create")
+def write_category_create(
+    name: Annotated[str, typer.Option("--name", help="What she would call it.")],
+    parent: Annotated[
+        str,
+        typer.Option("--parent", help="The category it belongs under, by name."),
+    ],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Add one category under an existing one.
+
+    The parent is required rather than defaulted, because a default would be
+    taken and a new top-level category flattens the tree she built.
+
+    Args:
+        name: What she would call it.
+        parent: The category it belongs under.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "adding a category"
+
+    def work() -> Envelope:
+        client = sign_in()
+        try:
+            with Mirror(store.mirror_path()) as mirror, undo.open_run(run) as opened:
+                categories_module.create(
+                    client, name=name, parent=parent, mirror=mirror, run=opened
+                )
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "added": name},
+        )
+
+    _run(attempted, work)
+
+
+@write_category_app.command("file")
+def write_category_file(
+    handles: Annotated[list[str], typer.Argument(help="The recipes in this group.")],
+    into: Annotated[str, typer.Option("--into", help="Where they go, by name.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """File a whole group of recipes under one category.
+
+    One group is one screen and one yes, so it is also one Run — undo reverses
+    what she just agreed to rather than the whole evening. The Run stops at the
+    first failure and names what did not go through.
+
+    **Additive only.** Nothing here removes a category she chose.
+
+    Args:
+        handles: The recipes in this group.
+        into: Where they go, by name.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "filing a group of recipes"
+
+    def work() -> Envelope:
+        patch = Patch.parse(adds=[f"categories={into}"])
+        found, category_names = _resolve(handles)
+        mutate = patch.as_mutation({"categories": category_names})
+        return _perform(
+            attempted, [(uid, name, mutate) for uid, name in found], run, done
+        )
+
+    _run(attempted, work)
+
+
 @app.command("grocery-draft")
 def grocery_draft(
     since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
@@ -1148,6 +1231,7 @@ def _perform(
     attempted: str,
     targets: list[tuple[str, str, Any]],
     run_id: str | None,
+    done: bool = False,
 ) -> Envelope:
     """Run a set of writes as one Run and turn the outcome into an envelope.
 
@@ -1155,6 +1239,7 @@ def _perform(
         attempted: What is being tried.
         targets: What to change.
         run_id: An open Run to join, or ``None`` to start one.
+        done: Whether this finishes the job.
 
     Returns:
         Envelope: The result, carrying the Run so a stopped one is addressable.
@@ -1164,7 +1249,7 @@ def _perform(
         with undo.open_run(run_id) as run:
             outcome = bulk.apply_all(client, targets, run=run)
             joined = run.id
-        _mirror_is_now_stale()
+        _after_write(client, done)
     finally:
         client.close()
 
