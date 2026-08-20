@@ -14,6 +14,7 @@ import datetime as dt
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -37,6 +38,9 @@ from paprika_core import (
 from paprika_core import (
     categories as categories_module,
 )
+from paprika_core import (
+    primer as primer_module,
+)
 from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
@@ -45,6 +49,11 @@ from paprika_core.mirror import Mirror
 from paprika_core.patch import Patch
 from paprika_core.recipes import differences, index_lines, rendered, search
 from paprika_core.session import sign_in
+
+#: Where this file sits when it is a checkout rather than an install, which is
+#: the only case where the plugin can be found by looking upwards from the code.
+#: The hook always passes the real one.
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent.parent
 
 app = typer.Typer(
     add_completion=False,
@@ -1672,6 +1681,32 @@ def write_profile_set(
         return succeeded(attempted, data={"noted": named})
 
     _run(attempted, work)
+
+
+@app.command()
+def primer(
+    root: Annotated[
+        Path,
+        typer.Option(
+            help="The plugin's own directory, which is where the skills live.",
+        ),
+    ] = PLUGIN_ROOT,
+) -> None:
+    """Print what a session is told before she has said anything.
+
+    **The one command with no envelope, and deliberately so.** Its reader is a
+    shell hook that injects stdout verbatim into the session; wrapping this in
+    JSON would mean the hook needed a parser before it could say anything, and a
+    hook that can fail is a hook that eventually takes Claude Code down with it.
+
+    ``--root`` exists because the two halves live apart: the skills sit in the
+    plugin directory, this command sits in its own environment, and neither can
+    find the other by looking upwards.
+
+    Args:
+        root: The plugin's root directory.
+    """
+    sys.stdout.write(primer_module.build(root) + "\n")
 
 
 def main() -> None:
