@@ -38,9 +38,30 @@ The reasoning is recorded in full in
 
 ## Status
 
-Early scaffolding — implementation to come. The design is settled and written down: see
-[the spec](https://github.com/jeffrichley/paprika/issues/29), the
-[architecture decisions](docs/adr/), and [`CONTEXT.md`](CONTEXT.md) for the vocabulary the project uses.
+Early. The walking skeleton is in: the plugin installs, `paprika` logs in, downloads your whole library to
+this machine, and reads it back. The skills, the agents and the session hook come next.
+
+The design is settled and written down: see [the spec](https://github.com/jeffrichley/paprika/issues/29),
+the [architecture decisions](docs/adr/), and [`CONTEXT.md`](CONTEXT.md) for the vocabulary the project
+uses.
+
+## Development
+
+Requires [`uv`](https://docs.astral.sh/uv/) and [`just`](https://just.systems/).
+
+```bash
+just install     # one venv, one lockfile
+just check       # Black, Ruff, mypy, pytest, and the 80% coverage floor
+just format      # rewrite with Black and Ruff's autofixes
+```
+
+`just check` is what has to be green before anything is pushed.
+
+**No test can reach the network.** Two autouse fixtures see to it: one puts a fake Paprika in front of
+every request, and the other fails the test loudly if a real socket is ever opened. The fake reproduces
+the API's actual misbehaviour — errors returned at success statuses, a bare 500 for a malformed write, no
+bulk recipe endpoint — rather than an idealised version of it, because wire-format code is the riskiest
+code here and a tidy fake would skip exactly the parts that matter.
 
 ## License
 
