@@ -99,17 +99,90 @@ def test_every_skill_directory_holds_a_skill_file() -> None:
             assert (entry / "SKILL.md").is_file(), f"{entry.name} has no SKILL.md"
 
 
-def test_no_agent_definition_grants_a_write_tool() -> None:
-    """Both agents are a large read and a small return. Neither may write.
+#: Tools that can change something. An agent holding any of these could act on
+#: its own conclusions, and the round trip through her is the safety model.
+WRITE_TOOLS = ("write", "edit", "multiedit", "notebookedit")
 
-    Asserted now, while ``agents/`` is empty, so the rule predates the agents.
+
+def _flowed(path: Path) -> str:
+    """Return a file's text with its line wrapping flattened.
+
+    Args:
+        path: The file.
+
+    Returns:
+        str: One long line, so a phrase can be looked for without caring where
+            the author happened to break it.
     """
-    for definition in (REPO / "agents").glob("*.md"):
-        text = definition.read_text(encoding="utf-8").lower()
-        for forbidden in ("write", "edit", "notebookedit", "paprika write"):
-            assert (
-                forbidden not in text
-            ), f"{definition.name} appears to grant {forbidden}"
+    return " ".join(path.read_text(encoding="utf-8").split())
+
+
+def _frontmatter(definition: Path) -> dict[str, str]:
+    """Return an agent definition's frontmatter fields.
+
+    Args:
+        definition: The agent file.
+
+    Returns:
+        dict[str, str]: Field name to value.
+    """
+    front = definition.read_text(encoding="utf-8").split("---", 2)[1]
+    fields = {}
+    for line in front.splitlines():
+        if ":" in line and not line.startswith(" "):
+            key, _, value = line.partition(":")
+            fields[key.strip()] = value.strip()
+    return fields
+
+
+def test_every_agent_declares_the_tools_it_may_use() -> None:
+    """An absent allowlist grants everything, which is the failure to avoid."""
+    for definition in sorted((REPO / "agents").glob("*.md")):
+        assert "tools" in _frontmatter(definition), f"{definition.name} allowlists none"
+
+
+def test_no_agent_definition_grants_a_write_tool() -> None:
+    """Checked against the allowlist, not the prose.
+
+    The prose *forbids* writing at length, so scanning it for the word would
+    flag the very sentences that make the rule — which is how a guard stops
+    being trusted. What binds is the frontmatter.
+    """
+    for definition in sorted((REPO / "agents").glob("*.md")):
+        granted = [
+            tool.strip().casefold()
+            for tool in _frontmatter(definition).get("tools", "").split(",")
+        ]
+        assert not [tool for tool in granted if tool in WRITE_TOOLS], definition.name
+
+
+def test_the_scan_says_in_its_own_words_that_it_cannot_write() -> None:
+    """ADR 0005 asks for it stated in the definition, not left to convention.
+
+    The failure mode is a future contributor noticing the agent could apply its
+    own proposal and save a round trip — so the definition has to argue against
+    that, not merely omit the tool.
+    """
+    # Whitespace-normalised: where a sentence happens to wrap is formatting,
+    # and a test that depends on it breaks the next time anyone reflows a line.
+    body = _flowed(REPO / "agents" / "library-scan.md")
+
+    assert "You hold no write tool" in body
+    assert "round trip is the entire safety model" in body
+
+
+def test_the_scan_carries_the_cooking_judgement_reference() -> None:
+    """Without it, an agent reasoning about her food invents its own taxonomy."""
+    body = (REPO / "agents" / "library-scan.md").read_text(encoding="utf-8")
+
+    assert "cooking-judgement.md" in body
+
+
+def test_the_scan_is_not_what_produces_the_health_report() -> None:
+    """The report is arithmetic; the agent is dispatched once she picks a job."""
+    front = _frontmatter(REPO / "agents" / "library-scan.md")
+
+    assert "never to produce the report itself" in front["description"]
 
 
 def test_the_console_script_is_declared() -> None:
@@ -347,7 +420,7 @@ def test_the_outstanding_skills_are_the_ones_whose_tickets_are_open() -> None:
     """
     outstanding = set(ROSTER) - _present()
 
-    assert outstanding == {"add-recipe", "edit-recipe", "nutrition", "organize"}
+    assert outstanding == {"add-recipe", "edit-recipe", "nutrition"}
 
 
 def test_the_meta_skill_is_never_something_she_types() -> None:

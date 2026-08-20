@@ -21,6 +21,7 @@ from paprika_core import (
     bulk,
     freshness,
     groceries,
+    health,
     pace,
     pantry,
     plan,
@@ -704,6 +705,52 @@ def write_pantry_gone(
     """
     attempted = "noting what you have run out of"
     _run(attempted, lambda: _pantry_write(attempted, ingredients, False, run, done))
+
+
+@app.command("health")
+def health_report(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """Report how tidy her library is.
+
+    Arithmetic over what is already downloaded — instant, and incapable of being
+    wrong in an interesting way. No agent is dispatched here; the Scan runs only
+    once she has picked a job.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "looking over your library"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            findings = health.report(mirror)
+            total = mirror.count_recipes()
+        return succeeded(
+            attempted,
+            data={
+                "recipes": total,
+                # The two she could pick, biggest first, and then everything
+                # worth saying — which is not the same list.
+                "jobs": [
+                    {"kind": job.kind, "recipes": job.recipes}
+                    for job in health.jobs(findings)
+                ],
+                # Everything else worth saying — the jobs that did not make
+                # the top two as well as the information. Without this the
+                # third line has nothing to close on.
+                "also": [
+                    {
+                        "kind": f.kind,
+                        "recipes": f.recipes,
+                        "actionable": f.actionable,
+                    }
+                    for f in findings
+                    if f.kind not in {job.kind for job in health.jobs(findings)}
+                ],
+                "tidy": health.is_tidy(findings),
+            },
+        )
+
+    _run(attempted, work)
 
 
 @app.command("grocery-draft")
