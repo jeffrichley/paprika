@@ -43,7 +43,7 @@ from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
 from paprika_core.patch import Patch
-from paprika_core.recipes import index_lines, rendered, search
+from paprika_core.recipes import differences, index_lines, rendered, search
 from paprika_core.session import sign_in
 
 app = typer.Typer(
@@ -431,6 +431,37 @@ def recipe_get(
         if len(recipes) == 1:
             data["recipe"] = recipes[0]
         return succeeded(attempted, data=data)
+
+    _run(attempted, work)
+
+
+@recipe_app.command("compare")
+def recipe_compare(
+    handles: Annotated[list[str], typer.Argument(help="The recipes to compare.")],
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Show what differs between recipes that look like copies of each other.
+
+    For choosing which copy to keep. Here a name is not enough to judge by — she
+    is deciding which one survives, and she can only do that if she can see what
+    each has that the others do not.
+
+    Args:
+        handles: The recipes to compare.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "comparing recipes"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            found = differences(mirror, handles)
+        if found["missing"]:
+            raise PaprikaError(
+                Code.NOTHING_MIRRORED,
+                "That isn't a recipe we know about.",
+                detail=f"unknown handles: {found['missing']}",
+            )
+        return succeeded(attempted, data=found)
 
     _run(attempted, work)
 
@@ -1428,24 +1459,32 @@ def write_recipe_nutrition(
 
 @write_recipe_app.command("trash")
 def write_recipe_trash(
-    handle: str,
+    handles: Annotated[list[str], typer.Argument(help="Which recipes.")],
     run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
 ) -> None:
-    """Put one recipe in Paprika's trash, where she can get it back herself.
+    """Put recipes in Paprika's trash, where she can get them back herself.
+
+    Several at once, because *keep this one and trash the rest* is one act and
+    should be one Run. Her recovery is the app's own trash and does not depend
+    on our snapshot surviving.
 
     Args:
-        handle: Which recipe.
+        handles: Which recipes.
         run: An earlier Run to join.
+        done: Whether this finishes the job.
     """
-    attempted = "moving a recipe to the trash"
+    attempted = "moving recipes to the trash"
 
     def work() -> Envelope:
-        found, _ = _resolve([handle])
+        found, _categories = _resolve(handles)
 
         def mutate(recipe: dict[str, Any]) -> None:
             recipe["in_trash"] = True
 
-        return _perform(attempted, [(uid, name, mutate) for uid, name in found], run)
+        return _perform(
+            attempted, [(uid, name, mutate) for uid, name in found], run, done
+        )
 
     _run(attempted, work)
 
