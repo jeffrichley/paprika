@@ -71,6 +71,28 @@ saved yet — a saved plan is changed with the same sentence.
 
 Show the night that changed. Show the whole week again only if she asks for it.
 
+## Inventing a dish mid-plan
+
+If she likes one of the options offered against an empty night — or just says
+*"make something up"* — do it **here**. Do not send her to another skill; the
+week is what she is thinking about.
+
+**Render the recipe whole before offering to save it.** Every ingredient, every
+step. She is about to put something in her library that nobody wrote, and
+reading it is the only way she can judge it.
+
+Then save it with `--invented`, which marks it as ours, and put it on the night
+— joining both to the same Run so one undo reverses both:
+
+```bash
+paprika write recipe create --set "name=…" --set "ingredients=…"   --set "directions=…" --invented
+paprika write plan set --date … --slot dinner --recipe <handle> --run <run> --done
+```
+
+**Never invent one to fill an empty night she has not asked you to fill.** An
+empty night with a reason is the honest answer; a made-up dish nobody asked for
+is the opposite of what leaving it empty was for.
+
 ## Saving it
 
 **One yes covering exactly the week you showed her.** Not "shall I save this

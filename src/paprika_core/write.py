@@ -50,10 +50,39 @@ CHANGE_MARKER = "hash"
 #: never depends on our snapshot surviving.
 REMOVAL = "deleted"
 
+#: What an invented recipe's source says. Applied here rather than by whoever
+#: is doing the writing: a mark a caller can forget is a mark that means nothing
+#: a year later, when the question is where a recipe actually came from.
+INVENTED_MARK = "Created with Claude"
+
 #: Must be null when absent, never `""`, or Paprika answers a bare 500.
 PHOTO_FIELDS = ("photo", "photo_hash", "photo_large")
 
 _REFUSED = "That change didn't look right, so nothing was sent to Paprika."
+
+
+def invented_source(today: str) -> str:
+    """Return the source an invented recipe carries.
+
+    Args:
+        today: The date, as ``YYYY-MM-DD``.
+
+    Returns:
+        str: The permanent mark.
+    """
+    return f"{INVENTED_MARK} — {today}"
+
+
+def carries_the_mark(value: object) -> bool:
+    """Say whether a source claims the recipe was invented here.
+
+    Args:
+        value: A source field.
+
+    Returns:
+        bool: Whether it carries the mark.
+    """
+    return isinstance(value, str) and INVENTED_MARK in value
 
 
 def new_change_marker() -> str:
@@ -101,6 +130,27 @@ def _prepare(fetched: dict[str, Any], mutated: dict[str, Any]) -> dict[str, Any]
             _REFUSED,
             detail=f"mutation dropped fields: {sorted(dropped)}",
         )
+    # The mark is applied here and nowhere else. A caller that could write it
+    # by hand could put it on a recipe she wrote, and a caller that could edit
+    # it away could take it off one we did — either way it stops being an
+    # answer to "where did this come from?"
+    if carries_the_mark(mutated.get("source")) and not carries_the_mark(
+        fetched.get("source")
+    ):
+        raise PaprikaError(
+            Code.REFUSED_LOCALLY,
+            "That isn't something this can put on a recipe.",
+            detail="attempt to write the invented mark by hand",
+        )
+    if carries_the_mark(fetched.get("source")) and not carries_the_mark(
+        mutated.get("source")
+    ):
+        raise PaprikaError(
+            Code.REFUSED_LOCALLY,
+            "Where a recipe came from isn't something to change later.",
+            detail="attempt to remove the invented mark",
+        )
+
     blank = [f for f in PHOTO_FIELDS if mutated.get(f) == ""]
     if blank:
         raise PaprikaError(
@@ -180,6 +230,7 @@ def create(
     *,
     run: Run,
     kind: str = "recipes",
+    invented_on: str | None = None,
 ) -> tuple[str, str]:
     """Make a new recipe from a blank one and a set of named changes.
 
@@ -192,6 +243,9 @@ def create(
         mutate: Called with the blank recipe, to fill in.
         run: The Run to capture the Pre-image into.
         kind: What kind of thing this is, for the envelope's ``changed`` map.
+        invented_on: The date, when this recipe is one we made up. Marks it
+            permanently, here rather than in a skill, because the only way that
+            mark answers anything is if it cannot be forgotten.
 
     Returns:
         tuple[str, str]: The new recipe's identity and its name.
@@ -205,6 +259,9 @@ def create(
     blank = blank_recipe(uid)
     mutated = deepcopy(blank)
     mutate(mutated)
+    if invented_on is not None:
+        mutated["source"] = invented_source(invented_on)
+        blank["source"] = mutated["source"]
 
     if not str(mutated.get("name") or "").strip():
         raise PaprikaError(
