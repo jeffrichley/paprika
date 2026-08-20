@@ -50,6 +50,23 @@ CREATE TABLE IF NOT EXISTS meals (
     name       TEXT NOT NULL DEFAULT '',
     body       TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pantry (
+    uid        TEXT PRIMARY KEY,
+    ingredient TEXT NOT NULL DEFAULT '',
+    aisle      TEXT NOT NULL DEFAULT '',
+    in_stock   INTEGER NOT NULL DEFAULT 1,
+    body       TEXT NOT NULL
+);
+-- Her own ingredient-to-aisle table. Filing black beans under her `Canned
+-- Goods` reads her scheme rather than imposing one.
+CREATE TABLE IF NOT EXISTS grocery_ingredients (
+    name      TEXT PRIMARY KEY,
+    aisle_uid TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS grocery_aisles (
+    uid  TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -98,6 +115,22 @@ class Meal:
     meal_type: int
     recipe_handle: str | None
     name: str
+
+
+@dataclass(frozen=True)
+class PantryItem:
+    """One thing she has in the house.
+
+    Attributes:
+        ingredient: What it is, in her own vocabulary.
+        aisle: Where her account files it, when it knows.
+        in_stock: Whether she has it. The only field the grocery subtraction
+            reads, and her own vocabulary is already binary.
+    """
+
+    ingredient: str
+    aisle: str
+    in_stock: bool
 
 
 @dataclass(frozen=True)
@@ -248,6 +281,108 @@ class Mirror:
             )
             for row in rows
         ]
+
+    def put_pantry(self, items: Iterable[dict[str, Any]]) -> None:
+        """Store the Pantry as Paprika holds it.
+
+        Args:
+            items: The pantry objects as Paprika returned them.
+        """
+        rows = [
+            (
+                str(item.get("uid", "")),
+                str(item.get("ingredient") or ""),
+                str(item.get("aisle") or ""),
+                int(bool(item.get("in_stock"))),
+                json.dumps(item),
+            )
+            for item in items
+            if item.get("uid")
+        ]
+        self._db.execute("DELETE FROM pantry")
+        self._db.executemany(
+            "INSERT OR REPLACE INTO pantry (uid, ingredient, aisle, in_stock, body)"
+            " VALUES (?, ?, ?, ?, ?)",
+            rows,
+        )
+        self._db.commit()
+
+    def pantry(self, in_stock_only: bool = True) -> list[PantryItem]:
+        """Return what she has in the house.
+
+        Args:
+            in_stock_only: Whether to leave out things marked gone. They are kept
+                rather than deleted, so that saying she has one again is a flip
+                rather than a fresh item with no history.
+
+        Returns:
+            list[PantryItem]: The Pantry, by aisle then ingredient.
+        """
+        rows = self._db.execute(
+            "SELECT ingredient, aisle, in_stock FROM pantry"
+            " WHERE (? = 0 OR in_stock = 1)"
+            " ORDER BY aisle, ingredient COLLATE NOCASE",
+            (int(in_stock_only),),
+        )
+        return [
+            PantryItem(
+                ingredient=row["ingredient"],
+                aisle=row["aisle"],
+                in_stock=bool(row["in_stock"]),
+            )
+            for row in rows
+        ]
+
+    def put_grocery_ingredients(
+        self, ingredients: Iterable[dict[str, Any]], aisles: Iterable[dict[str, Any]]
+    ) -> None:
+        """Store her own ingredient-to-aisle scheme.
+
+        Args:
+            ingredients: The account's canonical ingredient rows.
+            aisles: The account's aisles.
+        """
+        self._db.execute("DELETE FROM grocery_ingredients")
+        self._db.executemany(
+            "INSERT OR REPLACE INTO grocery_ingredients (name, aisle_uid)"
+            " VALUES (?, ?)",
+            [
+                (str(row.get("name") or "").casefold(), str(row.get("aisle_uid") or ""))
+                for row in ingredients
+                if row.get("name")
+            ],
+        )
+        self._db.execute("DELETE FROM grocery_aisles")
+        self._db.executemany(
+            "INSERT OR REPLACE INTO grocery_aisles (uid, name) VALUES (?, ?)",
+            [
+                (str(row.get("uid") or ""), str(row.get("name") or ""))
+                for row in aisles
+                if row.get("uid")
+            ],
+        )
+        self._db.commit()
+
+    def aisle_for(self, ingredient: str) -> tuple[str, str]:
+        """Return where her own account files an ingredient.
+
+        Never guessed. An ingredient her account has never seen simply has no
+        aisle, which degrades the entry rather than blocking the write.
+
+        Args:
+            ingredient: What it is.
+
+        Returns:
+            tuple[str, str]: The aisle's name and identifier, both empty when
+                her account does not file it anywhere.
+        """
+        row = self._db.execute(
+            "SELECT a.uid AS uid, a.name AS name FROM grocery_ingredients g"
+            " JOIN grocery_aisles a ON a.uid = g.aisle_uid"
+            " WHERE g.name = ?",
+            (ingredient.strip().casefold(),),
+        ).fetchone()
+        return (str(row["name"]), str(row["uid"])) if row else ("", "")
 
     def put_categories(self, categories: Iterable[dict[str, Any]]) -> None:
         """Store the whole category tree.

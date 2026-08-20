@@ -24,6 +24,9 @@ from paprika_core.mirror import Mirror
 
 RECIPE_PATH = "/api/v2/sync/recipe/{uid}/"
 MEALS_PATH = "/api/v2/sync/meals/"
+PANTRY_PATH = "/api/v2/sync/pantry/"
+GROCERY_INGREDIENTS_PATH = "/api/v2/sync/groceryingredients/"
+GROCERY_AISLES_PATH = "/api/v2/sync/groceryaisles/"
 
 #: Called with (done, total) after each recipe lands, so a long wait can say so.
 Progress = Callable[[int, int], None]
@@ -126,6 +129,33 @@ def refresh_meals(client: PaprikaClient, mirror: Mirror) -> int:
     return len(meals)
 
 
+def refresh_pantry(client: PaprikaClient, mirror: Mirror) -> int:
+    """Refetch the Pantry and the scheme that files it.
+
+    Her ingredient-to-aisle table comes along because it is what an aisle is
+    ever looked up in — it is never guessed, so without it a new entry simply
+    has no aisle.
+
+    Args:
+        client: A signed-in client.
+        mirror: The Mirror to bring up to date.
+
+    Returns:
+        int: How many pantry items the Mirror now holds.
+
+    Raises:
+        PaprikaError: On anything the wire says.
+    """
+    items = _as_list(client.get(PANTRY_PATH, "reading your pantry"))
+    mirror.put_pantry(items)
+    mirror.put_grocery_ingredients(
+        _as_list(client.get(GROCERY_INGREDIENTS_PATH, "reading your shopping list")),
+        _as_list(client.get(GROCERY_AISLES_PATH, "reading your shopping list")),
+    )
+    log_event("refresh_pantry", items=len(items))
+    return len(items)
+
+
 def cold_sync(
     client: PaprikaClient,
     mirror: Mirror,
@@ -158,6 +188,7 @@ def cold_sync(
 
     mirror.put_categories(categories)
     refresh_meals(client, mirror)
+    refresh_pantry(client, mirror)
 
     live = {
         str(stub.get("uid", "")): str(stub.get("hash") or "")
