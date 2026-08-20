@@ -223,6 +223,10 @@ class PaprikaClient:
             transport=TRANSPORT,
             headers={"User-Agent": USER_AGENT},
             follow_redirects=True,
+            # httpx defaults to five seconds. That is a cap nobody here chose,
+            # and a cold sync of five hundred recipes should wait as long as
+            # Paprika takes rather than be cut off by a number in a library.
+            timeout=None,
         )
 
     def close(self) -> None:
