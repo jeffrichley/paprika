@@ -23,6 +23,7 @@ from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
 
 RECIPE_PATH = "/api/v2/sync/recipe/{uid}/"
+MEALS_PATH = "/api/v2/sync/meals/"
 
 #: Called with (done, total) after each recipe lands, so a long wait can say so.
 Progress = Callable[[int, int], None]
@@ -104,6 +105,27 @@ def refresh_categories(client: PaprikaClient, mirror: Mirror) -> int:
     return len(categories)
 
 
+def refresh_meals(client: PaprikaClient, mirror: Mirror) -> int:
+    """Refetch the whole Plan.
+
+    It arrives in one request and is small, so there is nothing to diff.
+
+    Args:
+        client: A signed-in client.
+        mirror: The Mirror to bring up to date.
+
+    Returns:
+        int: How many meals the Plan now holds.
+
+    Raises:
+        PaprikaError: On anything the wire says.
+    """
+    meals = _as_list(client.get(MEALS_PATH, "reading your plan"))
+    mirror.put_meals(meals)
+    log_event("refresh_meals", meals=len(meals))
+    return len(meals)
+
+
 def cold_sync(
     client: PaprikaClient,
     mirror: Mirror,
@@ -135,6 +157,7 @@ def cold_sync(
     categories = _as_list(client.get(CATEGORIES_PATH, "reading your categories"))
 
     mirror.put_categories(categories)
+    refresh_meals(client, mirror)
 
     live = {
         str(stub.get("uid", "")): str(stub.get("hash") or "")

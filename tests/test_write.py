@@ -199,7 +199,13 @@ def test_an_assembled_object_cannot_be_handed_to_the_chokepoint(
 
 
 def test_the_raw_post_is_reachable_from_one_module_only() -> None:
-    """ADR 0004's "no exceptions" is unenforceable unless it is enforced."""
+    """ADR 0004's "no exceptions" is unenforceable unless it is enforced.
+
+    `plan.py` is the second module allowed to reach it, because meals have no
+    per-uid route — the whole array is posted — so the recipe chokepoint's shape
+    does not fit. It obeys the same rule: named values in, never an object a
+    caller assembled.
+    """
     source = Path(__file__).resolve().parent.parent / "src" / "paprika_core"
     callers = {
         module.name
@@ -207,7 +213,7 @@ def test_the_raw_post_is_reachable_from_one_module_only() -> None:
         if "_post_object" in module.read_text(encoding="utf-8")
     }
 
-    assert callers == {"http.py", "write.py"}
+    assert callers == {"http.py", "write.py", "plan.py"}
 
 
 def test_a_deleted_object_is_restored_by_reposting_its_pre_image(

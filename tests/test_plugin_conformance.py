@@ -14,6 +14,7 @@ checked.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -87,10 +88,14 @@ def test_every_hook_command_goes_through_the_plugin_root() -> None:
                     assert "${CLAUDE_PLUGIN_ROOT}" in hook["command"]
 
 
+#: Holds references that skills load, rather than skills of its own.
+SHARED = "shared"
+
+
 def test_every_skill_directory_holds_a_skill_file() -> None:
     """A skill directory without ``SKILL.md`` is a skill that silently never loads."""
     for entry in (REPO / "skills").iterdir():
-        if entry.is_dir():
+        if entry.is_dir() and entry.name != SHARED:
             assert (entry / "SKILL.md").is_file(), f"{entry.name} has no SKILL.md"
 
 
@@ -128,6 +133,18 @@ def _skill_files() -> list[Path]:
         list[Path]: The ``SKILL.md`` files.
     """
     return sorted((REPO / "skills").glob("*/SKILL.md"))
+
+
+def _skill_prose() -> list[Path]:
+    """Return everything a skill puts in front of the model.
+
+    Includes the shared references skills load, which are prose she can be
+    affected by just as much as a skill is.
+
+    Returns:
+        list[Path]: The Markdown files.
+    """
+    return sorted((REPO / "skills").glob("**/*.md"))
 
 
 def test_every_skill_declares_a_name_and_a_description() -> None:
@@ -179,7 +196,7 @@ def test_no_skill_text_leaks_paprikas_mechanics() -> None:
 
     This is the test that fails when that stops being true.
     """
-    for skill in _skill_files():
+    for skill in _skill_prose():
         body = skill.read_text(encoding="utf-8").casefold()
         for word in MECHANIC_WORDS:
             assert word not in body, f"{skill.parent.name} mentions {word!r}"
@@ -233,3 +250,53 @@ def test_no_dependency_brings_a_second_judge_with_it() -> None:
 
     for package in ("faiss", "chromadb", "sentence-transformers", "pgvector"):
         assert f'name = "{package}"' not in locked, f"{package} is in the lockfile"
+
+
+#: The words the week-planning prototype ran a whole session without using. The
+#: result was structural rather than stylistic — a skill cannot leak what it was
+#: never handed — and this is what keeps it that way.
+NEVER_SAID = (
+    "uid",
+    "hash",
+    "sync",
+    "token",
+    "api",
+    "cache",
+    "tier",
+    "provenance",
+    "200",
+)
+
+
+def test_no_skill_says_any_of_the_words_the_prototype_never_needed() -> None:
+    """Nine words, and a whole session was run without one of them appearing."""
+    offenders: list[str] = []
+    for skill in _skill_prose():
+        for line in skill.read_text(encoding="utf-8").splitlines():
+            # Code is for the model rather than for her, and a command's name
+            # is not a word said out loud — so fenced blocks and inline spans
+            # come out before the prose is read. Without this the scan flags its
+            # own counter-examples, which is how a guard stops being trusted.
+            if line.lstrip().startswith("```"):
+                continue
+            prose = re.sub(r"`[^`]*`", " ", line)
+            words = re.findall(r"[a-z0-9]+", prose.casefold())
+            offenders += [
+                f"{skill.parent.name}: {word} in {line.strip()[:60]!r}"
+                for word in NEVER_SAID
+                if word in words
+            ]
+
+    assert not offenders, "a mechanic word reached the session:\n" + "\n".join(
+        offenders
+    )
+
+
+def test_the_cooking_judgement_reference_exists_and_is_loaded() -> None:
+    """ADR 0003: cooking judgement is a shared reference, never an agent."""
+    reference = REPO / "skills" / "shared" / "cooking-judgement.md"
+
+    assert reference.is_file()
+    # And the skill that needs it says so, rather than hoping.
+    planner = (REPO / "skills" / "plan-week" / "SKILL.md").read_text(encoding="utf-8")
+    assert "cooking-judgement.md" in planner

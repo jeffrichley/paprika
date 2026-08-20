@@ -186,3 +186,65 @@ def build_library() -> list[dict[str, Any]]:
 
 #: How many of :func:`build_library`'s recipes are still in her Library.
 LIBRARY_SIZE = 4
+
+
+#: Slot numbers, as Paprika stores them.
+BREAKFAST, LUNCH, DINNER, SNACK = 0, 1, 2, 3
+
+
+def make_meal(
+    uid: str,
+    date: str,
+    name: str,
+    *,
+    meal_type: int = DINNER,
+    recipe_uid: str | None = None,
+) -> dict[str, Any]:
+    """Build one meal-plan entry, every field present.
+
+    Args:
+        uid: Its identifier. Uppercase UUID4 in real data, client-minted.
+        date: ``YYYY-MM-DD``; Paprika stores a space-separated time with it.
+        name: What it says on the plan.
+        meal_type: Which slot.
+        recipe_uid: The recipe, or ``None`` for a free-text meal — which is a
+            real case, not an edge one.
+
+    Returns:
+        dict[str, Any]: The meal.
+    """
+    return {
+        "uid": uid,
+        "recipe_uid": recipe_uid,
+        "date": f"{date} 00:00:00",
+        "type": meal_type,
+        "name": name,
+        "order_flag": 0,
+        # An empty string is accepted here, and is what a client that has not
+        # read her meal types should send.
+        "type_uid": "",
+        "scale": None,
+        "is_ingredient": False,
+    }
+
+
+def build_plan() -> list[dict[str, Any]]:
+    """Build a short Plan, including a meal that is not a recipe.
+
+    Returns:
+        list[dict[str, Any]]: The meals.
+    """
+    library = build_library()
+    return [
+        make_meal(
+            "11111111-0001-4A1B-9C3D-1A2B3C4D5E6F",
+            "2026-08-24",
+            "Roast Lemon Chicken",
+            recipe_uid=library[0]["uid"],
+        ),
+        make_meal(
+            "11111111-0002-4A1B-9C3D-1A2B3C4D5E6F",
+            "2026-08-25",
+            "Leftovers",
+        ),
+    ]

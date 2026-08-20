@@ -10,8 +10,8 @@ for someone who does not write software and should never have to.
 
 **She is not a developer.** She has never seen a config file and does not want
 to. Nothing you say here may contain a file path, a folder name, a command, a
-field name, or the word *credentials*, *token*, *config*, *JSON* or *sync*. If a
-sentence would only make sense to a programmer, it is the wrong sentence.
+field name, or any word that only means something to a programmer. If a sentence
+would only make sense to somebody who writes software, it is the wrong sentence.
 
 ## The shape of it
 
