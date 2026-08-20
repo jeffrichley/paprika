@@ -158,8 +158,8 @@ class TestWhatSurvivesTheProjection:
 
 class TestTheBundleThatIsActuallyShipped:
     def test_it_names_its_own_sources(self) -> None:
-        rows = list(csv.DictReader((data_dir() / MANIFEST_FILE).open(encoding="utf-8")))
-        items = [row["item"] for row in rows]
+        with (data_dir() / MANIFEST_FILE).open(encoding="utf-8") as manifest:
+            items = [row["item"] for row in csv.DictReader(manifest)]
 
         assert any("sr_legacy" in item for item in items)
         assert any("foundation" in item for item in items)

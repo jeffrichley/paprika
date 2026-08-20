@@ -61,7 +61,9 @@ class TestWhatAMemoHolds:
     def test_the_tier_is_stored_beside_the_number(self, memos: Memos) -> None:
         memos.remember("1 onion", a_number(), SIGNATURE)
 
-        row = sqlite3.connect(memos.path).execute("SELECT tier FROM memos").fetchone()
+        with sqlite3.connect(memos.path) as database:
+            row = database.execute("SELECT tier FROM memos").fetchone()
+        database.close()
 
         assert row[0] == Tier.DERIVED.name
 
