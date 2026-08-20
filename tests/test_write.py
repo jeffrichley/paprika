@@ -201,10 +201,11 @@ def test_an_assembled_object_cannot_be_handed_to_the_chokepoint(
 def test_the_raw_post_is_reachable_from_one_module_only() -> None:
     """ADR 0004's "no exceptions" is unenforceable unless it is enforced.
 
-    `plan.py` and `pantry.py` are allowed to reach it too, because neither meals
-    nor pantry items have a per-uid route — the whole array is posted — so the
-    recipe chokepoint's shape does not fit. Both obey the same rule: named
-    values in, never an object a caller assembled.
+    Three collection modules are allowed to reach it too — meals, pantry items
+    and groceries have no per-uid route, so the whole array is posted and the
+    recipe chokepoint's shape does not fit. Each obeys the same rule: named
+    values in, never an object a caller assembled. The list is here so that a
+    fourth is a decision somebody makes rather than a drift nobody notices.
     """
     source = Path(__file__).resolve().parent.parent / "src" / "paprika_core"
     callers = {
@@ -213,7 +214,13 @@ def test_the_raw_post_is_reachable_from_one_module_only() -> None:
         if "_post_object" in module.read_text(encoding="utf-8")
     }
 
-    assert callers == {"http.py", "write.py", "plan.py", "pantry.py"}
+    assert callers == {
+        "http.py",
+        "write.py",
+        "plan.py",
+        "pantry.py",
+        "groceries.py",
+    }
 
 
 def test_a_deleted_object_is_restored_by_reposting_its_pre_image(

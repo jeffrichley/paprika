@@ -30,6 +30,7 @@ from tests.library import (
     CATEGORY_TREE,
     GROCERY_AISLES,
     GROCERY_INGREDIENTS,
+    GROCERY_LISTS,
     build_library,
     build_pantry,
     build_plan,
@@ -162,6 +163,7 @@ def seeded(fake: FakePaprika) -> FakePaprika:
     fake.pantry = build_pantry()
     fake.grocery_ingredients = [dict(i) for i in GROCERY_INGREDIENTS]
     fake.grocery_aisles = [dict(a) for a in GROCERY_AISLES]
+    fake.grocery_lists = [dict(row) for row in GROCERY_LISTS]
     fake.counters = {"recipes": 812, "categories": 44, "meals": 130, "pantry": 61}
     return fake
 

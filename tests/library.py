@@ -304,3 +304,11 @@ def build_pantry() -> list[dict[str, Any]]:
         make_pantry_item("PANTRY-2", "rice", aisle="Dry Goods"),
         make_pantry_item("PANTRY-3", "soy sauce", aisle="Sauces", in_stock=False),
     ]
+
+
+#: Her shopping lists. `list_uid` is required on every grocery item, so this is
+#: not optional furniture.
+GROCERY_LISTS: list[dict[str, Any]] = [
+    {"uid": "LIST-1", "name": "Groceries", "order_flag": 0, "is_default": True},
+    {"uid": "LIST-2", "name": "Hardware", "order_flag": 1, "is_default": False},
+]
