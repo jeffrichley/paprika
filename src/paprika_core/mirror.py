@@ -256,6 +256,23 @@ class Mirror:
             for row in rows
         ]
 
+    def uid_for(self, handle: str) -> str | None:
+        """Return the identity behind a handle.
+
+        The one place a handle turns back into the mechanic it was derived from,
+        and it stays inside the core.
+
+        Args:
+            handle: The handle the session holds.
+
+        Returns:
+            str | None: The uid, or ``None`` when the handle is unknown.
+        """
+        row = self._db.execute(
+            "SELECT uid FROM recipes WHERE handle = ?", (handle,)
+        ).fetchone()
+        return str(row["uid"]) if row else None
+
     def recipe_body(self, handle: str) -> dict[str, Any] | None:
         """Return one whole recipe by handle.
 

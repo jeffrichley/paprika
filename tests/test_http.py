@@ -115,7 +115,7 @@ def test_a_write_is_gzipped_json_in_a_multipart_data_part(
     recipe.pop("photo_url")
 
     assert (
-        PaprikaClient(token=TOKEN).post_object(
+        PaprikaClient(token=TOKEN)._post_object(
             f"/api/v2/sync/recipe/{A_UID}/", recipe, "writing"
         )
         is True
@@ -126,7 +126,7 @@ def test_a_write_is_gzipped_json_in_a_multipart_data_part(
 def test_a_malformed_write_is_a_genuine_500(signed_in: Path) -> None:
     """A 500 naming no field is why a client has to validate before it posts."""
     with pytest.raises(PaprikaError) as caught:
-        PaprikaClient(token=TOKEN).post_object(
+        PaprikaClient(token=TOKEN)._post_object(
             f"/api/v2/sync/recipe/{A_UID}/", {"uid": A_UID, "name": "Half"}, "writing"
         )
 
@@ -141,7 +141,7 @@ def test_a_stale_hash_is_accepted_and_stored_as_sent(
     recipe = make_recipe(A_UID, "Stale", hash=sync_hash("years-ago"))
     recipe.pop("photo_url")
 
-    PaprikaClient(token=TOKEN).post_object(
+    PaprikaClient(token=TOKEN)._post_object(
         f"/api/v2/sync/recipe/{A_UID}/", recipe, "writing"
     )
 

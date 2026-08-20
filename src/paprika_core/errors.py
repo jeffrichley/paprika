@@ -53,4 +53,6 @@ class Code(StrEnum):
     PAPRIKA_UNREACHABLE = "paprika_unreachable"
     PAPRIKA_REFUSED = "paprika_refused"
     NOTHING_MIRRORED = "nothing_mirrored"
+    REFUSED_LOCALLY = "refused_locally"
+    NOTHING_TO_UNDO = "nothing_to_undo"
     UNEXPECTED = "unexpected"
