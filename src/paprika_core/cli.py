@@ -17,7 +17,7 @@ from typing import Annotated, Any
 
 import typer
 
-from paprika_core import bulk, freshness, pace, store, sync, undo, write
+from paprika_core import bulk, freshness, pace, setup, store, sync, undo, write
 from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
@@ -153,12 +153,14 @@ def login() -> None:
     def work() -> Envelope:
         email, password = store.credentials()
         store.ensure_home()
+        setup.record(setup.Step.CREDENTIALS)
         store.clear_token()
         client = PaprikaClient()
         try:
             store.save_token(client.login(email, password))
         finally:
             client.close()
+        setup.record(setup.Step.SIGNED_IN)
         return succeeded(attempted)
 
     _run(attempted, work)
@@ -177,8 +179,63 @@ def sync_library() -> None:
                 count = sync.cold_sync(client, mirror)
         finally:
             client.close()
+        # Progress is recorded by the command that did the work. There is no
+        # command for declaring a step finished, because one would let a caller
+        # lie about it.
+        setup.record(setup.Step.CREDENTIALS)
+        setup.record(setup.Step.SIGNED_IN)
+        setup.record(setup.Step.LIBRARY)
         # Nothing of hers moved: a sync moves the Mirror, not her library.
         return succeeded(attempted, data={"recipes_downloaded": count})
+
+    _run(attempted, work)
+
+
+setup_app = typer.Typer(no_args_is_help=True, help="Get this working on this machine.")
+app.add_typer(setup_app, name="setup")
+
+
+@setup_app.command("credentials")
+def setup_credentials(
+    email: Annotated[str, typer.Option("--email", help="Her Paprika account email.")],
+    password_stdin: Annotated[
+        bool,
+        typer.Option(
+            "--password-stdin",
+            help="Read the password from standard input rather than an argument.",
+        ),
+    ] = False,
+) -> None:
+    """Save the Paprika sign-in this machine should use.
+
+    The password is never accepted as an argument. An argument is visible to
+    every other process on the machine through the process list, and lands in
+    shell history besides — so the only way in is standard input, and asking for
+    it any other way is refused rather than quietly allowed.
+
+    Args:
+        email: Her Paprika account email.
+        password_stdin: Required. Read the password from standard input.
+    """
+    attempted = "saving your Paprika sign-in"
+
+    def work() -> Envelope:
+        if not password_stdin:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "The password has to be handed over privately, not typed as an "
+                "option.",
+                detail="--password-stdin is required",
+            )
+        password = sys.stdin.read().strip()
+        if not email.strip() or not password:
+            raise PaprikaError(
+                Code.NOT_SET_UP,
+                "We still need both the email and the password.",
+                detail="empty email or password",
+            )
+        setup.save_credentials(email.strip(), password)
+        return succeeded(attempted)
 
     _run(attempted, work)
 
@@ -285,30 +342,32 @@ def status(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
 
     def work() -> Envelope:
         store.ensure_home()
-        set_up = True
-        try:
-            store.credentials()
-        except PaprikaError as unset:
-            if unset.code != Code.NOT_SET_UP:
-                raise
-            set_up = False
+        progress = setup.read()
+        ready = progress.state is setup.State.READY
 
-        with Mirror(store.mirror_path()) as mirror:
-            age = mirror.age_seconds()
-            if set_up and age is not None:
-                age = _refresh(mirror, fresh).age_seconds
-            count = mirror.count_recipes()
+        age: float | None = None
+        count = 0
+        # A store that will not read is its own answer, and asking it anything
+        # further would only produce a confident wrong one.
+        if progress.state is not setup.State.UNREADABLE:
+            with Mirror(store.mirror_path()) as mirror:
+                age = mirror.age_seconds()
+                if ready and age is not None:
+                    age = _refresh(mirror, fresh).age_seconds
+                count = mirror.count_recipes()
 
         # Before the first download the Mirror cannot say how big the Library
         # is — and that is precisely when the estimate matters. One cheap
         # request buys an honest number; without it we would report "no wait at
         # all" for what is really a hundred-second walk.
-        expected = count if age is not None else (_library_size() if set_up else None)
+        can_ask = setup.Step.CREDENTIALS in progress.done
+        expected = count if age is not None else (_library_size() if can_ask else None)
 
         return succeeded(
             attempted,
             data={
-                "set_up": set_up,
+                "setup": progress.state.value,
+                "still_to_do": [step.value for step in progress.missing],
                 "recipes": count,
                 "mirror_age_seconds": round(age) if age is not None else None,
                 # Measured from this machine's own request durations. A skill

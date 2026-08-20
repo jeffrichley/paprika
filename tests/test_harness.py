@@ -25,8 +25,10 @@ def test_the_network_guard_fires_on_a_real_socket() -> None:
     with pytest.raises(NetworkAccessError):
         socket.create_connection(("example.com", 443))
 
-    with pytest.raises(NetworkAccessError):
-        socket.socket().connect(("example.com", 443))
+    # The probe is closed even though the guard stops it before it is used —
+    # a test that leaks a file descriptor to prove a point still leaks one.
+    with socket.socket() as probe, pytest.raises(NetworkAccessError):
+        probe.connect(("example.com", 443))
 
 
 def test_the_fake_is_injected_without_a_test_asking() -> None:

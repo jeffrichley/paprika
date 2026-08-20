@@ -103,6 +103,10 @@ warn_return_any = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# A warning nobody has to act on becomes permanent. Every warning is an error,
+# so a leaked handle or a deprecation is a failing build rather than a line in
+# the output that everyone scrolls past.
+filterwarnings = ["error"]
 addopts = [
     "--cov=paprika_core",
     "--cov-report=term-missing",

@@ -119,3 +119,83 @@ def test_there_is_one_lockfile_and_one_project() -> None:
     """One venv, one lockfile — not PEP 723 inline metadata per script."""
     assert (REPO / "uv.lock").is_file()
     assert len(list(REPO.glob("*/pyproject.toml"))) == 0
+
+
+def _skill_files() -> list[Path]:
+    """Return every skill definition in the plugin.
+
+    Returns:
+        list[Path]: The ``SKILL.md`` files.
+    """
+    return sorted((REPO / "skills").glob("*/SKILL.md"))
+
+
+def test_every_skill_declares_a_name_and_a_description() -> None:
+    """Without frontmatter a skill silently never fires."""
+    for skill in _skill_files():
+        text = skill.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), f"{skill.parent.name} has no frontmatter"
+        front = text.split("---", 2)[1]
+        assert "\nname:" in front, f"{skill.parent.name} declares no name"
+        assert "\ndescription:" in front, f"{skill.parent.name} declares no description"
+
+
+def test_a_skill_description_says_when_rather_than_how() -> None:
+    """A description that summarises the workflow becomes a shortcut past the body."""
+    for skill in _skill_files():
+        front = skill.read_text(encoding="utf-8").split("---", 2)[1]
+        description = front.split("description:", 1)[1].split("\n")[0].strip()
+        assert description.startswith("Use when"), skill.parent.name
+        assert len(description) < 1024, skill.parent.name
+
+
+def test_a_skill_name_matches_its_directory() -> None:
+    for skill in _skill_files():
+        front = skill.read_text(encoding="utf-8").split("---", 2)[1]
+        name = front.split("name:", 1)[1].split("\n")[0].strip()
+        assert name == skill.parent.name
+
+
+#: Words that mean Paprika's machinery. A skill that starts using one has been
+#: handed something the CLI was supposed to keep, and the fence has eroded.
+MECHANIC_WORDS = (
+    "hash",
+    "uid",
+    "jwt",
+    "bearer",
+    "http",
+    "in_trash",
+    "sync counter",
+    "state.toml",
+    ".env",
+    "cache.sqlite3",
+    "undo.sqlite3",
+    "~/.paprika",
+)
+
+
+def test_no_skill_text_leaks_paprikas_mechanics() -> None:
+    """The fence holds because a skill is never handed the mechanics to leak.
+
+    This is the test that fails when that stops being true.
+    """
+    for skill in _skill_files():
+        body = skill.read_text(encoding="utf-8").casefold()
+        for word in MECHANIC_WORDS:
+            assert word not in body, f"{skill.parent.name} mentions {word!r}"
+
+
+def test_no_skill_asks_her_to_touch_a_file() -> None:
+    """She is not a developer. A skill that hands her a file has already failed."""
+    for skill in _skill_files():
+        body = skill.read_text(encoding="utf-8").casefold()
+        for phrase in ("open the file", "edit the file", "create a file", "chmod"):
+            assert phrase not in body, f"{skill.parent.name} says {phrase!r}"
+
+
+def test_a_skill_only_reaches_paprika_through_the_command() -> None:
+    """The fence bans direct API calls, so no skill may name a Paprika URL."""
+    for skill in _skill_files():
+        body = skill.read_text(encoding="utf-8").casefold()
+        assert "paprikaapp.com" not in body
+        assert "/api/v2/" not in body
