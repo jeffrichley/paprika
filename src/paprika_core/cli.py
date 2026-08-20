@@ -21,6 +21,7 @@ from paprika_core import (
     bulk,
     freshness,
     pace,
+    pantry,
     plan,
     profile,
     setup,
@@ -59,6 +60,13 @@ write_app.add_typer(write_recipe_app, name="recipe")
 # prefix. Actually putting it back is a write like any other, and sits inside.
 undo_app = typer.Typer(no_args_is_help=True, help="What could be put back.")
 app.add_typer(undo_app, name="undo")
+
+pantry_app = typer.Typer(no_args_is_help=True, help="Read what is in the house.")
+app.add_typer(pantry_app, name="pantry")
+write_pantry_app = typer.Typer(
+    no_args_is_help=True, help="Change what is in the house."
+)
+write_app.add_typer(write_pantry_app, name="pantry")
 
 plan_app = typer.Typer(no_args_is_help=True, help="Read the week's plan.")
 app.add_typer(plan_app, name="plan")
@@ -569,6 +577,127 @@ def write_plan_clear(
         )
 
     _run(attempted, work)
+
+
+@pantry_app.command("list")
+def pantry_list(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
+    """Report what is in the house, and how old that belief is.
+
+    The age rides along rather than being a command of its own, so nothing can
+    read the Pantry without also learning how much to trust it.
+
+    Args:
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "reading what you have in"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            items = [
+                {"ingredient": item.ingredient, "aisle": item.aisle}
+                for item in mirror.pantry()
+            ]
+        age = pantry.age_days()
+        return succeeded(
+            attempted,
+            data={
+                "have": items,
+                "count": len(items),
+                # Null rather than zero when she has never confirmed it: never
+                # checked and checked today are not the same claim.
+                "confirmed_days_ago": round(age, 1) if age is not None else None,
+            },
+        )
+
+    _run(attempted, work)
+
+
+def _pantry_write(
+    attempted: str, ingredients: list[str], in_stock: bool, run: str | None, done: bool
+) -> Envelope:
+    """Record that she has, or no longer has, each of these.
+
+    Args:
+        attempted: What is being tried.
+        ingredients: What she named.
+        in_stock: Whether she has them.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+
+    Returns:
+        Envelope: The result.
+    """
+    client = sign_in()
+    try:
+        with Mirror(store.mirror_path()) as mirror, undo.open_run(run) as opened:
+            recorded = pantry.set_stock(
+                client, ingredients, in_stock=in_stock, mirror=mirror, run=opened
+            )
+            changed, joined = opened.changed(), opened.id
+        pantry.mark_checked()
+        _after_write(client, done)
+    finally:
+        client.close()
+    return Envelope(
+        ok=True,
+        attempted=attempted,
+        changed=changed,
+        data={"run": joined, "noted": recorded},
+    )
+
+
+@write_pantry_app.command("add")
+def write_pantry_add(
+    ingredients: Annotated[list[str], typer.Argument(help="What she bought.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Record what she bought, all of it at once.
+
+    Args:
+        ingredients: What she bought.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "noting what you bought"
+    _run(attempted, lambda: _pantry_write(attempted, ingredients, True, run, done))
+
+
+@write_pantry_app.command("confirm")
+def write_pantry_confirm(
+    ingredients: Annotated[list[str], typer.Argument(help="What is still there.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Record that she still has these.
+
+    Args:
+        ingredients: What is still there.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "noting what you still have"
+    _run(attempted, lambda: _pantry_write(attempted, ingredients, True, run, done))
+
+
+@write_pantry_app.command("gone")
+def write_pantry_gone(
+    ingredients: Annotated[list[str], typer.Argument(help="What has run out.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Record that she has run out of these.
+
+    The only way something leaves the Pantry. Nothing infers it — not a photo
+    that did not show it, not a planned day that has passed.
+
+    Args:
+        ingredients: What has run out.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "noting what you have run out of"
+    _run(attempted, lambda: _pantry_write(attempted, ingredients, False, run, done))
 
 
 @app.command()

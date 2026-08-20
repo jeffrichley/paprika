@@ -183,12 +183,13 @@ def restore(client: PaprikaClient, pre_image: PreImage, *, run: Run) -> str:
         PaprikaError: On anything the wire says.
     """
     if pre_image.kind != "recipes":
-        # A meal is posted as an array and its Pre-image may itself be a
-        # removal, so it goes back the way it came rather than through the
-        # recipe path.
-        from paprika_core import plan
+        # Meals and pantry items are posted as arrays and their Pre-images may
+        # themselves be removals, so each goes back the way it came rather than
+        # through the recipe path.
+        from paprika_core import pantry, plan
 
-        plan.restore(client, pre_image.body)
+        collection = {"plan": plan.restore, "pantry": pantry.restore}
+        collection[pre_image.kind](client, pre_image.body)
         run.capture(
             pre_image.kind, pre_image.uid, pre_image.name, deepcopy(pre_image.body)
         )

@@ -143,6 +143,9 @@ class FakePaprika:
     recipes: dict[str, dict[str, Any]] = field(default_factory=dict)
     categories: list[dict[str, Any]] = field(default_factory=list)
     meals: list[dict[str, Any]] = field(default_factory=list)
+    pantry: list[dict[str, Any]] = field(default_factory=list)
+    grocery_ingredients: list[dict[str, Any]] = field(default_factory=list)
+    grocery_aisles: list[dict[str, Any]] = field(default_factory=list)
     counters: dict[str, int] = field(default_factory=dict)
     writes: list[dict[str, Any]] = field(default_factory=list)
     requests: list[tuple[str, str]] = field(default_factory=list)
@@ -163,6 +166,8 @@ class FakePaprika:
     refuse_notify: bool = False
     #: Every meal array that was accepted, in order.
     meal_writes: list[list[dict[str, Any]]] = field(default_factory=list)
+    #: Every pantry array that was accepted, in order.
+    pantry_writes: list[list[dict[str, Any]]] = field(default_factory=list)
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -220,6 +225,21 @@ class FakePaprika:
             return _result({"token": TOKEN})
         return _error("Invalid email or password.")
 
+    def _collections(self) -> dict[str, list[dict[str, Any]]]:
+        """Return every whole-account collection, by path.
+
+        Returns:
+            dict[str, list[dict[str, Any]]]: Path to what it serves.
+        """
+        return {
+            "/api/v2/sync/categories/": self.categories,
+            # Soft-deleted meals stay in the collection, as everything here does.
+            "/api/v2/sync/meals/": self.meals,
+            "/api/v2/sync/pantry/": self.pantry,
+            "/api/v2/sync/groceryingredients/": self.grocery_ingredients,
+            "/api/v2/sync/groceryaisles/": self.grocery_aisles,
+        }
+
     def _get(self, path: str) -> httpx.Response:
         """Answer a read.
 
@@ -231,11 +251,9 @@ class FakePaprika:
         """
         if path == "/api/v2/sync/status/":
             return _result(dict(self.counters))
-        if path == "/api/v2/sync/categories/":
-            return _result([dict(c) for c in self.categories])
-        if path == "/api/v2/sync/meals/":
-            # Soft-deleted meals stay in the collection, as everything here does.
-            return _result([dict(m) for m in self.meals])
+        collection = self._collections().get(path)
+        if collection is not None:
+            return _result([dict(row) for row in collection])
         if path == "/api/v2/sync/recipes/":
             if self.fail_index_after_write and self.writes:
                 return _error("Try again later.")
@@ -277,6 +295,8 @@ class FakePaprika:
             return _result(True)
         if path == "/api/v2/sync/meals/":
             return self._post_meals(request)
+        if path == "/api/v2/sync/pantry/":
+            return self._post_pantry(request)
         # The plural route is the web clipper's scraper, not a bulk write. Using
         # it to create recipes is a 500.
         if path == "/api/v2/sync/recipes/":
@@ -297,6 +317,42 @@ class FakePaprika:
             httpx.Response: What Paprika would send back.
         """
         return _post_meals_impl(self, request)
+
+    def _post_pantry(self, request: httpx.Request) -> httpx.Response:
+        """Upsert the posted pantry array.
+
+        The endpoint wants `ingredient` and an `aisle` key; an empty aisle
+        passes. There is no `name` field here at all.
+
+        Args:
+            request: The multipart request.
+
+        Returns:
+            httpx.Response: What Paprika would send back.
+        """
+        body = _extract_gzipped_part(request.content)
+        if not isinstance(body, list):
+            return _refused()
+        for entry in body:
+            if not isinstance(entry, dict) or not entry.get("uid"):
+                return _refused()
+            if not str(entry.get("ingredient") or "").strip():
+                return _refused()
+            if "aisle" not in entry:
+                return _refused()
+            # Groceries and pantry are not symmetric; there is no name here.
+            if "name" in entry:
+                return _refused()
+        self.pantry_writes.append([dict(e) for e in body])
+        by_uid = {i["uid"]: i for i in self.pantry}
+        for entry in body:
+            if entry.get("deleted"):
+                by_uid.pop(entry["uid"], None)
+            else:
+                by_uid[entry["uid"]] = dict(entry)
+        self.pantry = list(by_uid.values())
+        self.counters["pantry"] = self.counters.get("pantry", 0) + 1
+        return _result(True)
 
     def _post_recipe(self, uid: str, request: httpx.Request) -> httpx.Response:
         """Store one recipe, or refuse it the way the real server refuses it.

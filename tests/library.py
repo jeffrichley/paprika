@@ -248,3 +248,59 @@ def build_plan() -> list[dict[str, Any]]:
             "Leftovers",
         ),
     ]
+
+
+#: Her own aisles, which is where an ingredient's filing comes from.
+GROCERY_AISLES: list[dict[str, Any]] = [
+    {"uid": "AISLE-CANNED", "name": "Canned Goods", "order_flag": 0},
+    {"uid": "AISLE-PRODUCE", "name": "Produce", "order_flag": 1},
+]
+
+#: Her account's ingredient-to-aisle table. An ingredient absent from it has no
+#: aisle, which is a degraded entry rather than a blocked write.
+GROCERY_INGREDIENTS: list[dict[str, Any]] = [
+    {"uid": "GI-1", "name": "black beans", "aisle_uid": "AISLE-CANNED"},
+    {"uid": "GI-2", "name": "onions", "aisle_uid": "AISLE-PRODUCE"},
+]
+
+
+def make_pantry_item(
+    uid: str, ingredient: str, *, aisle: str = "", in_stock: bool = True
+) -> dict[str, Any]:
+    """Build one pantry item, in the shape a live account returns.
+
+    Note what is *not* here: no `name`, because a pantry item has none.
+
+    Args:
+        uid: Its identifier.
+        ingredient: What it is.
+        aisle: Where her account files it.
+        in_stock: Whether she has it.
+
+    Returns:
+        dict[str, Any]: The item.
+    """
+    return {
+        "uid": uid,
+        "ingredient": ingredient,
+        "aisle": aisle,
+        "aisle_uid": "",
+        "quantity": "",
+        "in_stock": in_stock,
+        "has_expiration": False,
+        "expiration_date": None,
+        "purchase_date": "2026-08-01 00:00:00",
+    }
+
+
+def build_pantry() -> list[dict[str, Any]]:
+    """Build a short Pantry, including something she has run out of.
+
+    Returns:
+        list[dict[str, Any]]: The items.
+    """
+    return [
+        make_pantry_item("PANTRY-1", "cumin", aisle="Spices"),
+        make_pantry_item("PANTRY-2", "rice", aisle="Dry Goods"),
+        make_pantry_item("PANTRY-3", "soy sauce", aisle="Sauces", in_stock=False),
+    ]

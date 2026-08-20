@@ -19,7 +19,12 @@ from dataclasses import dataclass, field
 from paprika_core.http import STATUS_PATH, PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
-from paprika_core.sync import refresh_categories, refresh_meals, refresh_recipes
+from paprika_core.sync import (
+    refresh_categories,
+    refresh_meals,
+    refresh_pantry,
+    refresh_recipes,
+)
 
 #: How long one answer about freshness stays good for. It exists so a burst of
 #: reads inside a single conversation costs one request rather than a dozen —
@@ -88,6 +93,8 @@ def ensure_current(
         refreshed["categories"] = refresh_categories(client, mirror)
     if _moved(seen, counters, "meals"):
         refreshed["meals"] = refresh_meals(client, mirror)
+    if _moved(seen, counters, "pantry"):
+        refreshed["pantry"] = refresh_pantry(client, mirror)
 
     mirror.mark_synced(counters)
     log_event("freshness", refreshed=refreshed, forced=force)

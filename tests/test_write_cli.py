@@ -270,10 +270,19 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
         "undo",
         "profile",
         "plan",
+        "pantry",
     }
     # Setup writes to this machine, never to her library, so it stays outside.
     assert _commands_at("setup") == {"credentials"}
-    assert _commands_at("write") == {"recipe", "undo", "profile", "plan"}
+    assert _commands_at("write") == {
+        "recipe",
+        "undo",
+        "profile",
+        "plan",
+        "pantry",
+    }
+    assert _commands_at("write", "pantry") == {"add", "confirm", "gone"}
+    assert _commands_at("pantry") == {"list"}
     assert _commands_at("write", "plan") == {"set", "clear"}
     assert _commands_at("plan") == {"show"}
     assert _commands_at("write", "profile") == {"set"}
