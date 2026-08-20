@@ -146,6 +146,8 @@ class FakePaprika:
     pantry: list[dict[str, Any]] = field(default_factory=list)
     grocery_ingredients: list[dict[str, Any]] = field(default_factory=list)
     grocery_aisles: list[dict[str, Any]] = field(default_factory=list)
+    grocery_lists: list[dict[str, Any]] = field(default_factory=list)
+    groceries: list[dict[str, Any]] = field(default_factory=list)
     counters: dict[str, int] = field(default_factory=dict)
     writes: list[dict[str, Any]] = field(default_factory=list)
     requests: list[tuple[str, str]] = field(default_factory=list)
@@ -168,6 +170,8 @@ class FakePaprika:
     meal_writes: list[list[dict[str, Any]]] = field(default_factory=list)
     #: Every pantry array that was accepted, in order.
     pantry_writes: list[list[dict[str, Any]]] = field(default_factory=list)
+    #: Every grocery array that was accepted, in order.
+    grocery_writes: list[list[dict[str, Any]]] = field(default_factory=list)
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -238,6 +242,8 @@ class FakePaprika:
             "/api/v2/sync/pantry/": self.pantry,
             "/api/v2/sync/groceryingredients/": self.grocery_ingredients,
             "/api/v2/sync/groceryaisles/": self.grocery_aisles,
+            "/api/v2/sync/grocerylists/": self.grocery_lists,
+            "/api/v2/sync/groceries/": self.groceries,
         }
 
     def _get(self, path: str) -> httpx.Response:
@@ -297,6 +303,8 @@ class FakePaprika:
             return self._post_meals(request)
         if path == "/api/v2/sync/pantry/":
             return self._post_pantry(request)
+        if path == "/api/v2/sync/groceries/":
+            return self._post_groceries(request)
         # The plural route is the web clipper's scraper, not a bulk write. Using
         # it to create recipes is a 500.
         if path == "/api/v2/sync/recipes/":
@@ -352,6 +360,33 @@ class FakePaprika:
                 by_uid[entry["uid"]] = dict(entry)
         self.pantry = list(by_uid.values())
         self.counters["pantry"] = self.counters.get("pantry", 0) + 1
+        return _result(True)
+
+    def _post_groceries(self, request: httpx.Request) -> httpx.Response:
+        """Upsert the posted grocery array.
+
+        `list_uid` is required here, unlike almost everything else.
+
+        Args:
+            request: The multipart request.
+
+        Returns:
+            httpx.Response: What Paprika would send back.
+        """
+        body = _extract_gzipped_part(request.content)
+        if not isinstance(body, list):
+            return _refused()
+        for entry in body:
+            if not isinstance(entry, dict) or not entry.get("uid"):
+                return _refused()
+            if not str(entry.get("list_uid") or "").strip():
+                return _refused()
+        self.grocery_writes.append([dict(e) for e in body])
+        by_uid = {i["uid"]: i for i in self.groceries}
+        for entry in body:
+            by_uid[entry["uid"]] = dict(entry)
+        self.groceries = list(by_uid.values())
+        self.counters["groceries"] = self.counters.get("groceries", 0) + 1
         return _result(True)
 
     def _post_recipe(self, uid: str, request: httpx.Request) -> httpx.Response:

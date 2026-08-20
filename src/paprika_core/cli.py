@@ -20,6 +20,7 @@ import typer
 from paprika_core import (
     bulk,
     freshness,
+    groceries,
     pace,
     pantry,
     plan,
@@ -60,6 +61,11 @@ write_app.add_typer(write_recipe_app, name="recipe")
 # prefix. Actually putting it back is a write like any other, and sits inside.
 undo_app = typer.Typer(no_args_is_help=True, help="What could be put back.")
 app.add_typer(undo_app, name="undo")
+
+write_groceries_app = typer.Typer(
+    no_args_is_help=True, help="Change her shopping list."
+)
+write_app.add_typer(write_groceries_app, name="groceries")
 
 pantry_app = typer.Typer(no_args_is_help=True, help="Read what is in the house.")
 app.add_typer(pantry_app, name="pantry")
@@ -698,6 +704,87 @@ def write_pantry_gone(
     """
     attempted = "noting what you have run out of"
     _run(attempted, lambda: _pantry_write(attempted, ingredients, False, run, done))
+
+
+@app.command("grocery-draft")
+def grocery_draft(
+    since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
+    until: Annotated[str, typer.Option("--to", help="Last day, YYYY-MM-DD.")] = "",
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Work out the week's shopping, minus what she already has.
+
+    Computed here rather than in a conversation, because it has to come out the
+    same every time.
+
+    Args:
+        since: First day.
+        until: Last day.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "working out your shopping list"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            made = groceries.draft(mirror, since, until)
+        age = made.pantry_age_days
+        return succeeded(
+            attempted,
+            data={
+                "buy": [
+                    {"line": item.line, "for": item.recipe} for item in made.wanted
+                ],
+                "count": len(made.wanted),
+                # Named always; what changes with age is whether the list is
+                # expected to say so out loud, never whether it subtracted.
+                "already_have": made.subtracted,
+                "pantry_age_days": round(age, 1) if age is not None else None,
+                "pantry_stale": made.pantry_stale,
+            },
+        )
+
+    _run(attempted, work)
+
+
+@write_groceries_app.command("push")
+def write_groceries_push(
+    since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
+    until: Annotated[str, typer.Option("--to", help="Last day, YYYY-MM-DD.")] = "",
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Put the week's shopping into Paprika's own list.
+
+    The plugin builds no list of its own. This is her list, in the app she
+    already shops from, rendered by the app.
+
+    Args:
+        since: First day.
+        until: Last day.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "adding to your shopping list"
+
+    def work() -> Envelope:
+        client = sign_in()
+        try:
+            with Mirror(store.mirror_path()) as mirror:
+                made = groceries.draft(mirror, since, until)
+            with undo.open_run(run) as opened:
+                added = groceries.push(client, made.wanted, run=opened)
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "added": added, "already_have": made.subtracted},
+        )
+
+    _run(attempted, work)
 
 
 @app.command()

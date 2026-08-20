@@ -64,7 +64,8 @@ HEADER = """\
 #              what they love. Free text — write it however you say it.
 #
 # rhythm       How the week actually goes: how many people, which nights are
-#              fast, who is away.
+#              fast, who is away, and how many days old what-you-have can get
+#              before a shopping list starts explaining what it left off.
 #
 # targets      Directions, never numbers. A key reads like `protein_leaning`
 #              and its value is higher, lower or steady — because a goal with a
@@ -100,6 +101,9 @@ class Profile:
         allergies: Canonical allergy names the filter can act on.
         people: Everyone cooked for, by name.
         household_size: How many people, when stated.
+        pantry_stale_days: How old what-she-has may be before a list explains
+            itself. Hers to tune, because a number that lives only in a prompt
+            is one nobody can change and no test can pin.
         fast_nights: Nights that have to be quick.
         away: Who is away this week.
         targets: Directional leanings, never numbers.
@@ -110,6 +114,7 @@ class Profile:
     allergies: tuple[str, ...] = ()
     people: dict[str, Person] = field(default_factory=dict)
     household_size: int | None = None
+    pantry_stale_days: float | None = None
     fast_nights: tuple[str, ...] = ()
     away: tuple[str, ...] = ()
     targets: dict[str, str] = field(default_factory=dict)
@@ -214,6 +219,11 @@ def read() -> Profile:
         allergies=_strings(allergies_raw),
         people=people,
         household_size=int(size) if isinstance(size, int) else None,
+        pantry_stale_days=(
+            float(stale)
+            if isinstance(stale := rhythm.get("pantry_stale_days"), (int, float))
+            else None
+        ),
         fast_nights=_strings(rhythm.get("fast_nights")),
         away=_strings(rhythm.get("away")),
         targets=targets,
@@ -430,13 +440,11 @@ def _apply_rhythm(
         rhythm = tomlkit.table()
         document["rhythm"] = rhythm
 
-    if parts[1] == "household_size":
+    if parts[1] in ("household_size", "pantry_stale_days"):
         try:
-            rhythm["household_size"] = int(value)
+            rhythm[parts[1]] = int(value)
         except ValueError:
-            raise _refuse(
-                "How many people is a number.", f"household_size={value!r}"
-            ) from None
+            raise _refuse("That one is a number.", f"{parts[1]}={value!r}") from None
         return
 
     if parts[1] not in ("fast_nights", "away"):
