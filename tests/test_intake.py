@@ -179,3 +179,102 @@ def test_clearing_needs_to_be_asked_for_explicitly(signed_in: Path) -> None:
 
     assert vague.exit_code == 1
     assert len(intake.waiting()) == 1
+
+
+def test_the_clean_ones_come_first(paprika_home: Path) -> None:
+    """Stopping a third of the way through should still leave her ahead."""
+    intake.save("/a.jpg", {"name": "Gapped one"}, gaps=("a line",))
+    intake.save("/b.jpg", {"name": "Clean one"})
+    intake.save("/c.jpg", {"name": "Another gapped"}, gaps=("a line",))
+    intake.save("/d.jpg", {"name": "Another clean"})
+
+    order = [d.fields["name"] for d in intake.in_lanes(intake.waiting())]
+
+    assert order == ["Clean one", "Another clean", "Gapped one", "Another gapped"]
+
+
+def test_a_file_that_produced_nothing_is_not_in_the_walk(
+    paprika_home: Path,
+) -> None:
+    intake.save("/a.jpg", {"name": "Real"})
+    intake.save("/b.jpg", {}, unusable="not a recipe")
+
+    assert [d.fields["name"] for d in intake.in_lanes(intake.waiting())] == ["Real"]
+
+
+def test_what_could_not_be_opened_is_named_never_dropped(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    runner.invoke(app, ["sync"])
+    runner.invoke(app, ["intake", "save", "--source", "/a.jpg", "--set", "name=Real"])
+    runner.invoke(
+        app, ["intake", "save", "--source", "/b.jpg", "--unusable", "could not open it"]
+    )
+
+    data = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+
+    assert data["count"] == 1
+    assert data["skipped"] == [{"source": "/b.jpg", "why": "could not open it"}]
+
+
+def test_a_draft_that_matches_her_library_says_so(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """Surfaced on the recipe's own screen, before her yes."""
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app,
+        ["intake", "save", "--source", "/a.jpg", "--set", "name=Roast Lemon Chicken"],
+    )
+
+    data = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+
+    assert data["drafts"][0]["looks_like"] == ["Roast Lemon Chicken"]
+
+
+def test_the_same_recipe_twice_in_one_folder_is_caught(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """A folder of scanned pages can hold the same page twice."""
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app, ["intake", "save", "--source", "/a.jpg", "--set", "name=Nana's Loaf"]
+    )
+    runner.invoke(
+        app, ["intake", "save", "--source", "/b.jpg", "--set", "name=Nanas Loaf"]
+    )
+
+    data = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+
+    assert data["drafts"][0]["looks_like"] == ["Nanas Loaf"]
+
+
+def test_a_draft_that_matches_nothing_says_nothing(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app, ["intake", "save", "--source", "/a.jpg", "--set", "name=Something New"]
+    )
+
+    data = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+
+    assert data["drafts"][0]["looks_like"] == []
+
+
+def test_resuming_replays_the_read_but_re_runs_the_duplicate_check(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """The files are static; her Library is not."""
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app, ["intake", "save", "--source", "/a.jpg", "--set", "name=Newly Added"]
+    )
+    before = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+    assert before["drafts"][0]["looks_like"] == []
+
+    # She saved it during the walk, from another screen.
+    runner.invoke(app, ["write", "recipe", "create", "--set", "name=Newly Added"])
+
+    after = envelope_of(runner.invoke(app, ["intake", "list"]).stdout)["data"]
+    assert after["drafts"][0]["looks_like"] == ["Newly Added"]

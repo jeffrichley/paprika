@@ -810,27 +810,54 @@ def intake_save(
 
 @intake_app.command("list")
 def intake_list() -> None:
-    """Report the drafts read so far, oldest first."""
+    """Report what has been read, in the order it should be reviewed.
+
+    Clean recipes first and gapped ones last, because stopping a third of the
+    way through a folder should still leave her ahead. Files that produced no
+    recipe are not in the walk at all — they are counted at the end.
+    """
     attempted = "reading what has been drafted"
 
     def work() -> Envelope:
-        drafts = [
-            {
-                "source": draft.source,
-                "name": draft.fields.get("name", ""),
-                "gaps": list(draft.gaps),
-                "unusable": draft.unusable,
-            }
-            for draft in intake.waiting()
-        ]
+        drafts = intake.waiting()
+        reviewable = intake.in_lanes(drafts)
+        # The duplicate check reads her Library, so it establishes freshness
+        # like any other read — the files are static but the Library is not,
+        # and a recipe saved earlier in this same walk has to count.
+        try:
+            with _current_mirror(False) as (mirror, _checked):
+                library = {r.handle: r.name for r in mirror.recipes()}
+        except PaprikaError as unread:
+            if unread.code is not Code.NOTHING_MIRRORED:
+                raise
+            # Nothing downloaded means nothing to be a duplicate of. The drafts
+            # still list; they simply cannot be checked against anything.
+            library = {}
         return succeeded(
             attempted,
             data={
-                "drafts": drafts,
-                "count": len(drafts),
-                # The clean ones first is the skill's business; this says which
-                # are which so it does not have to guess.
-                "clean": sum(1 for d in drafts if not d["gaps"] and not d["unusable"]),
+                "drafts": [
+                    {
+                        "source": draft.source,
+                        "name": draft.fields.get("name", ""),
+                        "lane": intake.lane_of(draft),
+                        "gaps": list(draft.gaps),
+                        # Both directions: the folder can hold the same recipe
+                        # twice, and it can hold one she already has.
+                        "looks_like": intake.matches_for(draft, library, drafts),
+                    }
+                    for draft in reviewable
+                ],
+                "count": len(reviewable),
+                "clean": sum(
+                    1 for d in reviewable if intake.lane_of(d) == intake.CLEAN
+                ),
+                # Named, never silently dropped.
+                "skipped": [
+                    {"source": draft.source, "why": draft.unusable}
+                    for draft in drafts
+                    if intake.lane_of(draft) == intake.SKIPPED
+                ],
             },
         )
 

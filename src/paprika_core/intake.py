@@ -172,6 +172,89 @@ def waiting() -> list[Draft]:
     )
 
 
+#: Which lane a draft is reviewed in. Clean first, so stopping a third of the
+#: way through still leaves her ahead.
+CLEAN, GAPPED, SKIPPED = "clean", "gapped", "skipped"
+
+
+def lane_of(draft: Draft) -> str:
+    """Return which lane a draft belongs in.
+
+    Args:
+        draft: The draft.
+
+    Returns:
+        str: ``clean``, ``gapped``, or ``skipped`` for a file that produced no
+            recipe at all.
+    """
+    if draft.unusable is not None:
+        return SKIPPED
+    return GAPPED if draft.gaps else CLEAN
+
+
+def in_lanes(drafts: list[Draft]) -> list[Draft]:
+    """Order drafts for review: clean first, gapped last.
+
+    The lane boundary is a real stopping point, and putting the clean ones first
+    is what makes quitting a third of the way through still worth having done.
+    Skipped files are not in the walk at all — they are counted at the end.
+
+    Args:
+        drafts: The drafts, in the order they were read.
+
+    Returns:
+        list[Draft]: The reviewable ones, clean lane then gapped lane, each in
+            the order it was read.
+    """
+    order = {CLEAN: 0, GAPPED: 1}
+    reviewable = [draft for draft in drafts if lane_of(draft) != SKIPPED]
+    return sorted(reviewable, key=lambda d: (order[lane_of(d)], d.read_at))
+
+
+def _words(text: str) -> str:
+    """Reduce a title to something two copies of it would share.
+
+    Args:
+        text: A recipe title.
+
+    Returns:
+        str: Lowercased words, apostrophes dropped.
+    """
+    import re
+
+    return " ".join(re.findall(r"[a-z0-9]+", re.sub(r"['\u2019]", "", text.casefold())))
+
+
+def matches_for(
+    draft: Draft, library: dict[str, str], others: list[Draft]
+) -> list[str]:
+    """Return what this draft might be a duplicate of.
+
+    Both directions matter: a folder of scanned pages can hold the same recipe
+    twice, and it can hold one she already has. Lexical on the title, because
+    that is what is comparable before she has read either.
+
+    Args:
+        draft: The draft being reviewed.
+        library: Her Library, as handle to name.
+        others: The other drafts in this walk.
+
+    Returns:
+        list[str]: Names it looks like, hers first.
+    """
+    title = _words(draft.fields.get("name", ""))
+    if not title:
+        return []
+    found = [name for name in library.values() if _words(name) == title]
+    found += [
+        other.fields["name"]
+        for other in others
+        if other.source != draft.source
+        and _words(other.fields.get("name", "")) == title
+    ]
+    return found
+
+
 def done(source: str) -> None:
     """Forget one draft, because it has been dealt with.
 
