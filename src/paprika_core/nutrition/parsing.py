@@ -11,6 +11,16 @@ The import is heavy — numpy and nltk, about half a second — so it happens in
 the function rather than at module scope. A test pins that importing
 :mod:`paprika_core` does not pay for it.
 
+It also reaches for the network unless it is stopped. NLTK ships no part-of-speech
+tagger with the library: ``ingredient-parser-nlp`` looks for
+``averaged_perceptron_tagger_eng`` and, not finding it, calls
+``nltk.download`` — which on her machine means a silent 1.5 MB fetch the first
+time she asks about nutrition, and an outright failure if she is offline or
+behind a firewall. That is exactly the outcome bundling the USDA data exists to
+avoid, so the tagger is bundled the same way and NLTK is pointed at our copy
+before the parser is ever imported. If the bundled copy is missing, this module
+says so in a sentence rather than quietly going to the internet.
+
 What this module adds to the parse is the accounting: anything the parser set
 aside as a comment is carried out as an unaccounted word rather than dropped,
 because a silently discarded `plus more for greasing` is how a line quietly
@@ -20,9 +30,16 @@ becomes worth less than it looks.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, final
 
+from paprika_core.errors import Code, PaprikaError
 from paprika_core.nutrition.units import Dimension, canonical_unit, dimension
+
+#: The one NLTK resource the parser needs. NLTK reads the three JSON files it
+#: wants straight out of the bundled zip, so it is shipped zipped: 1.5 MB
+#: against 5.4 MB unpacked.
+TAGGER = "averaged_perceptron_tagger_eng"
 
 #: Phrases that mean the author declined to say how much, which is a fact about
 #: the recipe rather than a failure of ours.
@@ -163,6 +180,44 @@ def _midpoint(amount: Any) -> float:
     return (float(amount.quantity) + float(amount.quantity_max)) / 2.0
 
 
+def nltk_data_dir() -> Path:
+    """Return the directory holding the bundled NLTK resources.
+
+    Returns:
+        Path: The package's ``data/nltk`` directory, laid out the way NLTK
+            expects — ``taggers/<resource>.zip``.
+    """
+    return Path(__file__).parent / "data" / "nltk"
+
+
+def _use_bundled_tagger() -> None:
+    """Point NLTK at our copy of the tagger, ahead of anything on the machine.
+
+    Prepending rather than appending is the point: a stale or half-downloaded
+    ``~/nltk_data`` must not win, and neither must the downloader.
+
+    Raises:
+        PaprikaError: ``nutrition_data_missing`` when the bundled tagger is not
+            there. Failing loudly is the whole reason this function exists — the
+            alternative, which is what the parser does on its own, is a silent
+            download.
+    """
+    bundled = nltk_data_dir() / "taggers" / f"{TAGGER}.zip"
+    if not bundled.is_file():
+        raise PaprikaError(
+            Code.NUTRITION_DATA_MISSING,
+            "Part of the language data that ships with this plugin is missing, "
+            "so I can't read ingredient lines.",
+            detail=f"no bundled NLTK tagger at {bundled}",
+        )
+
+    import nltk.data
+
+    directory = str(nltk_data_dir())
+    if directory not in nltk.data.path:
+        nltk.data.path.insert(0, directory)
+
+
 def parse_line(line: str) -> ParsedIngredient:
     """Parse one ingredient line.
 
@@ -176,7 +231,10 @@ def parse_line(line: str) -> ParsedIngredient:
         return ParsedIngredient(line=line, quantity=None, unit="", size="", name="")
 
     # Deferred deliberately: this pulls numpy and nltk, and no session that never
-    # asks about nutrition should pay for it.
+    # asks about nutrition should pay for it. The tagger has to be in place
+    # before the import, because the parser checks for it as it loads.
+    _use_bundled_tagger()
+
     from ingredient_parser import parse_ingredient
 
     parsed = parse_ingredient(line)

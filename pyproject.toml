@@ -110,7 +110,16 @@ warn_return_any = true
 # ours to type-check, and every value crossing back from the parser is read
 # through a typed adapter in `nutrition/parsing.py`.
 [[tool.mypy.overrides]]
-module = ["ingredient_parser", "ingredient_parser.*", "numpy", "numpy.*", "pint", "pint.*"]
+module = [
+    "ingredient_parser",
+    "ingredient_parser.*",
+    "nltk",
+    "nltk.*",
+    "numpy",
+    "numpy.*",
+    "pint",
+    "pint.*",
+]
 follow_imports = "skip"
 follow_imports_for_stubs = true
 ignore_errors = true
