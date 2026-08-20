@@ -135,3 +135,71 @@ def search(mirror: Mirror, term: str) -> list[str]:
         if wanted in haystack:
             found.append(_line(recipe, names))
     return found
+
+
+#: What is worth comparing when she is choosing which copy to keep. Ordered so
+#: the things that decide it come first.
+COMPARED = (
+    "ingredients",
+    "directions",
+    "servings",
+    "total_time",
+    "prep_time",
+    "cook_time",
+    "notes",
+    "nutritional_info",
+    "source",
+    "source_url",
+    "rating",
+)
+
+
+def differences(mirror: Mirror, handles: list[str]) -> dict[str, Any]:
+    """Show what differs between recipes that look like copies of each other.
+
+    Here a name is **not** sufficient to judge by — that is what separates this
+    from re-filing. She is deciding which copy survives, and she can only do
+    that if she can see what each one has that the others do not.
+
+    Nothing here proposes a merge, and nothing computes a similarity score. Two
+    recipes with the same title and different ingredients are a real question,
+    not an obvious duplicate.
+
+    Args:
+        mirror: The Mirror to read.
+        handles: The recipes in the cluster.
+
+    Returns:
+        dict[str, Any]: The recipes by handle, which fields differ, and which
+            are identical — because identical ingredients and method is
+            structural evidence that asserts, where a similar title only asks.
+    """
+    bodies = {handle: mirror.recipe_body(handle) for handle in handles}
+    present = {h: b for h, b in bodies.items() if b is not None}
+
+    differing: list[str] = []
+    same: list[str] = []
+    for field_name in COMPARED:
+        values = {str(body.get(field_name) or "") for body in present.values()}
+        (differing if len(values) > 1 else same).append(field_name)
+
+    return {
+        "recipes": [
+            {
+                "handle": handle,
+                "name": str(body.get("name") or ""),
+                # Only the fields that actually differ, so a screen shows the
+                # decision rather than two whole recipes side by side.
+                "differs": {
+                    field_name: str(body.get(field_name) or "")
+                    for field_name in differing
+                },
+            }
+            for handle, body in present.items()
+        ],
+        "same": same,
+        # Identical ingredients and method is a fact that can be stated. A
+        # similar title is a question that has to be asked.
+        "identical": not differing,
+        "missing": [handle for handle in handles if bodies.get(handle) is None],
+    }

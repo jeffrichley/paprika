@@ -93,6 +93,48 @@ root may well have been deliberate, and a hole beats a preference.
 
 **Unmatched recipes are left alone.** Not everything has to go somewhere.
 
+## Duplicates
+
+The other half of what the Scan finds, and it works differently — because here a
+name is **not** enough to judge by. She is deciding which copy survives.
+
+`paprika recipe compare <handle> <handle>` shows what differs and what does not.
+
+### What one cluster screen is made of
+
+1. **How many copies, and their shared title.**
+2. **What differs**, side by side — only the fields that actually do.
+3. **One question: which one to keep.**
+
+> Two copies of **Mum's Lasagne**. Same ingredients and method. One says 1 hr and
+> has a note *"Nana's version"*; the other says 45 min and has no note.
+> Keep either, or leave both?
+
+### Structural evidence asserts; similarity asks
+
+If `identical` is true — same ingredients, same method — say so as a fact:
+*"These two are the same recipe."*
+
+If it is false, it is a **question**: *"These might be the same thing — the
+ingredients differ."* Two recipes sharing a title and nothing else are not a
+duplicate, and calling one is how she loses a recipe she wanted.
+
+### Keep one, trash the rest
+
+```bash
+paprika write recipe trash <handle> <handle> --done
+```
+
+One command, one Run, because it is one decision. Say what happened with the
+undo riding along, and say where they went:
+
+> Kept the one with the note. The other's in Paprika's trash — you can put it
+> back from the app, or say the word and I'll do it.
+
+**Never merge.** Not field by field, not "I'll take the ingredients from this one
+and the note from that one". Deciding which version of her recipe survives is
+hers, and a merged recipe is a third one she did not write.
+
 ## Three noes
 
 If she turns down three groups, the clustering is wrong and only she knows why.
@@ -118,6 +160,8 @@ Scan again, and show her where things stand now.
 - **Never find something when there is nothing.** One sentence, and stop.
 - **Never offer to fix an empty category or a missing photo in bulk.**
 - **Never let the Scan's proposal become an action without her yes.**
+- **Never merge two recipes**, in any form, anywhere.
+- **Never call two recipes duplicates on their title alone.**
 
 ## Common mistakes
 
