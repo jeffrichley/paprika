@@ -657,6 +657,45 @@ def pantry_list(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
     _run(attempted, work)
 
 
+@pantry_app.command("unseen")
+def pantry_unseen(
+    seen: Annotated[list[str], typer.Argument(help="What was actually seen.")],
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Report what is recorded but was not among these.
+
+    A photograph shows one shelf, so what it does not show is a **question**
+    rather than a finding. This works out which question to ask, once, rather
+    than leaving it to whatever was remembered — a closing line that misses an
+    item is how something quietly stays on a list forever.
+
+    Args:
+        seen: What was actually seen.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "working out what wasn't in the picture"
+
+    def work() -> Envelope:
+        spotted = {name.strip().casefold() for name in seen if name.strip()}
+        with _current_mirror(fresh) as (mirror, _checked):
+            recorded = [item.ingredient for item in mirror.pantry()]
+        missing = [
+            ingredient
+            for ingredient in recorded
+            if ingredient.strip().casefold() not in spotted
+        ]
+        return succeeded(
+            attempted,
+            data={
+                # Never removed on this evidence. Asked about, once, at the end.
+                "not_seen": missing,
+                "seen": sorted(spotted),
+            },
+        )
+
+    _run(attempted, work)
+
+
 def _pantry_write(
     attempted: str, ingredients: list[str], in_stock: bool, run: str | None, done: bool
 ) -> Envelope:

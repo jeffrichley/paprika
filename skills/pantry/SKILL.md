@@ -1,6 +1,6 @@
 ---
 name: pantry
-description: Use when the user says what they have bought or brought home, mentions running out of something, wants to check or update what is in the house, or asks what they already have before shopping.
+description: Use when the user says what they have bought or brought home, sends or points at a photo of a shelf, cupboard or fridge, mentions running out of something, wants to check or update what is in the house, or asks what they already have before shopping.
 ---
 
 # What's in the house
@@ -56,6 +56,73 @@ paprika write pantry gone "fish sauce" --done
 **Do not ask about everything.** A dozen questions to tidy a list is a chore she
 will not do twice.
 
+## A photo of a shelf
+
+**A photo is evidence, not a mode.** Accept one anywhere what-she-has is in
+question — including in the middle of a shopping list, where a picture is the
+fastest possible answer to *"are any of those nine actually gone?"*
+
+There is nothing to set up and nowhere to put an image. She sends it, or she
+points at where it is. If she **pasted** it, read it here — it is already in
+front of you. If she **named a path or a folder**, dispatch the Reader; that
+file has not been opened yet and should not be opened here.
+
+### An image that arrives with no words
+
+Say what you think it is in the **opening line**, then draft against it. The
+draft is the verification — she will correct a wrong guess instantly.
+
+> Looks like a spice shelf. I can see: cumin, smoked paprika, turmeric, dried
+> oregano, bay leaves…
+
+Only ask first when it is a genuine coin-flip — a photo that could as easily be
+a shopping receipt as a cupboard.
+
+### What goes in the list, and what goes in the question
+
+**A legible label goes in the list.** You can read the jar; that is evidence.
+
+**A guess at a shape or a colour goes in the closing question, never the list.**
+*"There's a green tin at the back I can't read — is that the fennel?"* A guess
+promoted into the list becomes a fact nobody checked.
+
+### What you could not see
+
+**A camera can say "this is here". It cannot say anything is gone.** The jar is
+behind the cereal.
+
+So the photo only ever **adds and confirms**. At the end — once, at the
+confirmation, not per photo — ask about the rest:
+
+```bash
+paprika pantry unseen cumin "smoked paprika" turmeric
+```
+
+> I didn't see these five — still there? Rice, fish sauce, cornflour, honey, bay
+> leaves.
+
+**The unit is the conversational turn, not the photo.** If she sends a second
+picture — *"here's the other cupboard"* — that extends the same draft. Merge-only
+makes that free. Asking after the first photo about things that are in the
+second is how this becomes annoying.
+
+### When you cannot read it
+
+**Say what you could and could not see.** A short list that poses as a complete
+one is worse than an admission.
+
+> I could only make out the front row — there's a second row behind it I can't
+> read.
+
+**Nothing legible at all is a plain sentence, not an empty draft.**
+
+> I can't make anything out in that one, sorry — too dark to read the labels.
+
+### No mark
+
+Do not record where this came from. The content is her shelf; we only looked at
+it. That is different from a recipe we invented.
+
 ## Quantities, dates and sizes
 
 **Names only.** Do not record how much, what size, or when it was bought.
@@ -79,7 +146,11 @@ Every read tells you how many days since she last confirmed anything.
 
 - **Mark something gone only when she has said it is gone**, in words, in this
   conversation. Not from a photo, not from a plan, not from an inference.
-- **Never invent a quantity, a size or a date.**
+- **Never invent a quantity, a size or a date.** A photo shows six tins; it
+  cannot show that two are out of date.
+- **Never put a guess in the list.** Guesses go in the closing question.
+- **Never ask about unseen items more than once**, and never before she has
+  finished sending pictures.
 - **Never ask about more than a handful at a time** in a check.
 - **Never split one shop into several confirmations.**
 - **Never say she has something without saying how old that is**, once it is more
@@ -104,4 +175,7 @@ Every read tells you how many days since she last confirmed anything.
 | Twelve yes/no questions | A handful, or one grouped list |
 | Splitting a shop into batches | One list grouped by aisle, one yes |
 | Announcing the pantry is fresh | Say nothing when it is |
+| Removing what a photo didn't show | It shows one shelf; ask at the end |
+| "2 cans of black beans" from a photo | Names only |
+| Asking about unseen items after each picture | Once, at the confirmation |
 | Treating never-confirmed as empty | Say you don't know yet |

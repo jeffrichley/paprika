@@ -240,3 +240,63 @@ def test_a_read_after_a_shop_shows_the_shop(
 
     have = envelope_of(runner.invoke(app, ["pantry", "list"]).stdout)["data"]["have"]
     assert "flour" in {i["ingredient"] for i in have}
+
+
+def test_what_a_photo_did_not_show_is_a_question_not_a_finding(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """A camera can say this is here. It cannot say anything is gone."""
+    runner.invoke(app, ["sync"])
+
+    envelope = envelope_of(runner.invoke(app, ["pantry", "unseen", "cumin"]).stdout)
+
+    assert envelope["data"]["not_seen"] == ["rice"]
+    # And nothing moved on the strength of a photograph.
+    assert "rice" in _have(seeded)
+
+
+def test_seeing_everything_asks_about_nothing(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    runner.invoke(app, ["sync"])
+
+    envelope = envelope_of(
+        runner.invoke(app, ["pantry", "unseen", "cumin", "rice"]).stdout
+    )
+
+    assert envelope["data"]["not_seen"] == []
+
+
+def test_what_she_already_said_was_gone_is_not_asked_about_again(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """`soy sauce` is recorded but out of stock; it is not a shelf gap."""
+    runner.invoke(app, ["sync"])
+
+    envelope = envelope_of(runner.invoke(app, ["pantry", "unseen", "cumin"]).stdout)
+
+    assert "soy sauce" not in envelope["data"]["not_seen"]
+
+
+def test_a_second_photo_extends_the_same_draft(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """The unit is the turn, not the photo. Merge-only makes that free."""
+    runner.invoke(app, ["sync"])
+    runner.invoke(app, ["write", "pantry", "add", "cumin"])
+    runner.invoke(app, ["write", "pantry", "add", "flour"])
+
+    assert {"cumin", "flour", "rice"} <= _have(seeded)
+
+
+def test_the_plugin_builds_nothing_to_receive_an_image() -> None:
+    """No watched folder, no inbox, no path convention. She sends it, or points."""
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parent.parent
+    source = " ".join(
+        path.read_text(encoding="utf-8") for path in (root / "src").glob("**/*.py")
+    ).casefold()
+
+    for contraption in ("watchdog", "inotify", "watched", "inbox", "dropbox"):
+        assert contraption not in source, contraption
