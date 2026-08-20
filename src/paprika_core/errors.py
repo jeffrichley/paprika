@@ -53,4 +53,6 @@ class Code(StrEnum):
     PAPRIKA_UNREACHABLE = "paprika_unreachable"
     PAPRIKA_REFUSED = "paprika_refused"
     NOTHING_MIRRORED = "nothing_mirrored"
+    NUTRIENT_UNSUPPORTED = "nutrient_unsupported"
+    NUTRITION_DATA_MISSING = "nutrition_data_missing"
     UNEXPECTED = "unexpected"

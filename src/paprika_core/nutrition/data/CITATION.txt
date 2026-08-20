@@ -1,0 +1,16 @@
+The nutrient data in this directory is a subset of USDA FoodData Central,
+projected from the bulk CSV downloads by paprika_core.nutrition.bundle.
+
+  Foundation Foods      2026-04-30
+  SR Legacy             2018-04
+  Survey (FNDDS)        2024-10-31
+
+FoodData Central data are US Government works, in the public domain and not
+copyrighted, released as CC0 1.0 Universal. No permission is needed for their
+use. USDA requests, but does not require, the following citation:
+
+  U.S. Department of Agriculture, Agricultural Research Service.
+  FoodData Central, 2019. fdc.nal.usda.gov.
+
+Branded Foods is deliberately absent. It is 97% of the database, its records
+outrank whole foods in every relevance ranking, and it would be 428 MB zipped.
