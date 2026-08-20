@@ -1,0 +1,67 @@
+# The same gate `just check` runs locally, run on every push and pull request.
+#
+# It installs `just` through uv rather than a third-party action so the whole
+# workflow depends on exactly one action beyond checkout, and so the gate has
+# one definition — the justfile — rather than a copy here that can drift.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every version the project claims to support. A plugin installs into
+        # whatever Python the user already has, so the floor is a promise and
+        # each release in between is one somebody will actually run.
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-groups --locked
+
+      - name: Black, Ruff, mypy, Vulture, pytest, coverage
+        run: uvx --from rust-just just check
+
+  audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    # A newly published advisory should be visible without blocking a code
+    # change that has nothing to do with it.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-groups --locked
+
+      - name: Audit locked dependencies
+        run: uvx --from rust-just just audit
