@@ -273,6 +273,7 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
         "pantry",
         "grocery-draft",
         "health",
+        "nutrition",
     }
     # Setup writes to this machine, never to her library, so it stays outside.
     assert _commands_at("setup") == {"credentials"}
@@ -292,7 +293,12 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
     assert _commands_at("write", "profile") == {"set"}
     # Reading her household changes nothing, so it stays outside the prefix.
     assert _commands_at("profile") == {"show"}
-    assert _commands_at("write", "recipe") == {"set", "create", "trash"}
+    assert _commands_at("write", "recipe") == {
+        "set",
+        "create",
+        "trash",
+        "nutrition",
+    }
     # Reading what could be put back changes nothing, so it stays outside.
     assert _commands_at("undo") == {"list"}
     # And the reads are reads.
