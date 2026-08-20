@@ -1,6 +1,6 @@
 ---
 name: add-recipe
-description: Use when the user pastes a recipe link, dictates or pastes a recipe as text, or asks to add or save a recipe to their library.
+description: Use when the user pastes a recipe link, dictates or pastes a recipe as text, asks to add or save a recipe, or points at a file or folder of scanned or photographed recipes by name.
 ---
 
 # Getting a recipe in
@@ -9,8 +9,8 @@ Two ways in here: **a link she pastes**, and **a recipe she says or pastes as
 text**. Both end the same way — a drafted recipe she reads, corrects, and says
 yes to.
 
-Photos and folders of scanned pages are a different skill. Inventing a recipe
-from nothing is `/paprika:plan-week`'s job.
+A **file or folder she names** is the third way in, and it has its own section
+below. Inventing a recipe from nothing is `/paprika:plan-week`'s job.
 
 ## Structure is ours, words are hers
 
@@ -79,13 +79,80 @@ File it under a category only if one obviously fits. Guessing a category is
 worse than leaving it out, because a wrong one is harder to notice than a
 missing one.
 
+## A folder she points at
+
+Same gesture as a single file, and the same rule: **you never open it.** Dispatch
+the **file-reader** agent with the path. It reads everything, one draft per file,
+saving each as it lands.
+
+### What to say before the first screen
+
+1. **What was found** — *"40 files across 3 folders."*
+2. **Roughly how long the walk is**, so she knows what she is committing to.
+3. **That stopping partway is fine**, because it is.
+
+Say all three, then start. `paprika intake list` gives you the counts.
+
+### The order is not yours to choose
+
+`intake list` returns them in review order: **clean ones first, gapped ones
+last.** Do not reorder them, and do not interleave. Stopping a third of the way
+through should leave her ahead, and it only does if the good ones came first.
+
+**Name the lane boundary out loud when you reach it**, as a stopping point:
+
+> That's all 27 clean ones. The remaining 6 each have a line I couldn't read —
+> worth carrying on, or leave them for now?
+
+### What one screen is made of
+
+One recipe per screen, by default. In this order:
+
+1. **The recipe, whole** — title, ingredients, steps.
+2. **Any gap**, pointed at where it sits in the text.
+3. **Anything it looks like**, from `looks_like`, with the difference.
+4. **One question about this recipe.**
+
+**Offer the lighter form; never assume it.** *"Want me to go one at a time, or
+just list the clean ones and you say which to keep?"* How carefully she looks at
+her own pages is her call.
+
+### Her answers
+
+- **Yes** — save it, and it is **its own Run**, so undo reverses that recipe.
+- **No** — drop it, move on. Do not ask again and do not ask why.
+- **A correction** — edit the draft and stay on this screen. A correction is not
+  a no.
+
+Then `paprika intake done --source <path>` so a resumed walk does not re-offer
+it.
+
+### Ending
+
+`--done` on the last save, so her phone hears once rather than forty times.
+
+Then **one closing count**, including what was skipped:
+
+> Saved 22. Skipped 3 I couldn't open: `page_07.jpg`, `page_19.jpg`,
+> `notes.txt`.
+
+Then `paprika intake done --all`. The drafts are finished with.
+
+### If she stops and comes back
+
+`intake list` still has everything — nothing is read twice. But the duplicate
+check runs again, because she may have saved something since, and it may now
+match. Do not carry forward what it said last time.
+
 ## Rules that do not bend
 
 - **Never tidy her wording.**
 - **Never fill in something the source did not say.**
 - **Never merge two recipes.** Add anyway or skip.
 - **Never save without a yes covering the recipe you just showed her.**
-- **Never mark a recipe as ours.** These two ways in are hers.
+- **Never mark a recipe as ours.** These ways in are all hers.
+- **Never open a named file or folder yourself.** Dispatch the Reader.
+- **Never reorder the walk**, and never skip the lane boundary.
 
 ## When you are about to break one of those
 
