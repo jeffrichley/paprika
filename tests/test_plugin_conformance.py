@@ -124,7 +124,7 @@ def _frontmatter(definition: Path) -> dict[str, str]:
         definition: The agent file.
 
     Returns:
-        dict[str, str]: Field name to value.
+        dict[str, str]: Field name to raw value.
     """
     front = definition.read_text(encoding="utf-8").split("---", 2)[1]
     fields = {}
@@ -135,10 +135,55 @@ def _frontmatter(definition: Path) -> dict[str, str]:
     return fields
 
 
+def _granted_tools(definition: Path) -> list[str]:
+    """Return the tools an agent is allowed, from its allowlist.
+
+    Parsed as the **JSON array** the format actually specifies. This matters
+    more than it looks: the first version of this helper split on commas, which
+    happily accepted `tools: Bash, Read` — a shape the harness does not read as
+    an allowlist at all. A test that parses a format nobody else uses will
+    confirm whatever the definition happens to say.
+
+    Args:
+        definition: The agent file.
+
+    Returns:
+        list[str]: The tools, lowercased.
+
+    Raises:
+        AssertionError: When the allowlist is not a JSON array.
+    """
+    raw = _frontmatter(definition).get("tools", "")
+    assert raw.startswith("[") and raw.endswith(
+        "]"
+    ), f"{definition.name}: tools must be a JSON array, got {raw!r}"
+    return [str(tool).casefold() for tool in json.loads(raw)]
+
+
+REQUIRED_AGENT_FIELDS = ("name", "description", "model", "color")
+
+
+def test_every_agent_declares_the_fields_the_format_requires() -> None:
+    """`model` and `color` are required, and omitting them is silent."""
+    for definition in sorted((REPO / "agents").glob("*.md")):
+        front = _frontmatter(definition)
+        for required in REQUIRED_AGENT_FIELDS:
+            assert required in front, f"{definition.name} omits {required}"
+
+
+def test_every_agent_points_at_its_own_worked_scenarios() -> None:
+    """The description names triggers; the body works them through."""
+    for definition in sorted((REPO / "agents").glob("*.md")):
+        body = definition.read_text(encoding="utf-8")
+        assert "## When to invoke" in body, definition.name
+        assert "When to invoke" in _frontmatter(definition)["description"]
+
+
 def test_every_agent_declares_the_tools_it_may_use() -> None:
     """An absent allowlist grants everything, which is the failure to avoid."""
     for definition in sorted((REPO / "agents").glob("*.md")):
         assert "tools" in _frontmatter(definition), f"{definition.name} allowlists none"
+        assert _granted_tools(definition), f"{definition.name} allowlists nothing"
 
 
 def test_no_agent_definition_grants_a_write_tool() -> None:
@@ -149,10 +194,7 @@ def test_no_agent_definition_grants_a_write_tool() -> None:
     being trusted. What binds is the frontmatter.
     """
     for definition in sorted((REPO / "agents").glob("*.md")):
-        granted = [
-            tool.strip().casefold()
-            for tool in _frontmatter(definition).get("tools", "").split(",")
-        ]
+        granted = _granted_tools(definition)
         assert not [tool for tool in granted if tool in WRITE_TOOLS], definition.name
 
 
