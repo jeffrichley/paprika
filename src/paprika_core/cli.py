@@ -603,7 +603,7 @@ def pantry_list(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
                 {"ingredient": item.ingredient, "aisle": item.aisle}
                 for item in mirror.pantry()
             ]
-        age = pantry.age_days()
+        age = store.pantry_age_days()
         return succeeded(
             attempted,
             data={
@@ -640,7 +640,7 @@ def _pantry_write(
                 client, ingredients, in_stock=in_stock, mirror=mirror, run=opened
             )
             changed, joined = opened.changed(), opened.id
-        pantry.mark_checked()
+        store.mark_pantry_checked()
         _after_write(client, done)
     finally:
         client.close()

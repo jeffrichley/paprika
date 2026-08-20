@@ -21,11 +21,9 @@ nothing consumes, wrong within a week.
 
 from __future__ import annotations
 
-import time
 import uuid
 from typing import Any
 
-from paprika_core import store
 from paprika_core.http import PaprikaClient
 from paprika_core.log import log_event
 from paprika_core.mirror import Mirror
@@ -34,9 +32,6 @@ from paprika_core.undo import Run
 
 #: The kind this writes, for the envelope's `changed` map.
 KIND = "pantry"
-
-#: Where the age of the belief is kept. Machine state, not hers.
-CHECKED_AT = "pantry_checked_at"
 
 
 def _fetch(client: PaprikaClient) -> list[dict[str, Any]]:
@@ -171,28 +166,3 @@ def restore(client: PaprikaClient, body: dict[str, Any]) -> None:
         body: The Pre-image.
     """
     client._post_object(PANTRY_PATH, [dict(body)], "putting your pantry back")
-
-
-def mark_checked() -> None:
-    """Record that the Pantry was just looked at.
-
-    Any interaction counts — confirming, adding after a shop, saying something
-    has run out. What is being recorded is when the belief was last touched by
-    her, which is the only thing that makes its age meaningful.
-    """
-    document = store.read_state()
-    document[CHECKED_AT] = time.time()
-    store.write_state(document)
-
-
-def age_days() -> float | None:
-    """Return how long ago the Pantry was last confirmed.
-
-    Returns:
-        float | None: Days since she last touched it, or ``None`` when she never
-            has — which is not the same as zero and must not be shown as it.
-    """
-    stamp = store.read_state().get(CHECKED_AT)
-    if not isinstance(stamp, (int, float)):
-        return None
-    return max(0.0, (time.time() - float(stamp)) / 86400.0)

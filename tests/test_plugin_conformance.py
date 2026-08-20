@@ -300,3 +300,77 @@ def test_the_cooking_judgement_reference_exists_and_is_loaded() -> None:
     # And the skill that needs it says so, rather than hoping.
     planner = (REPO / "skills" / "plan-week" / "SKILL.md").read_text(encoding="utf-8")
     assert "cooking-judgement.md" in planner
+
+
+#: The roster, settled in #10. Ten jobs she invokes in plain English plus the
+#: meta-skill she never types. Named here so a stray directory is caught and so
+#: what is still outstanding is visible rather than assumed.
+ROSTER = (
+    "add-recipe",
+    "edit-recipe",
+    "find-recipe",
+    "grocery-list",
+    "help",
+    "nutrition",
+    "organize",
+    "pantry",
+    "plan-week",
+    "setup",
+    "using-paprika",
+)
+
+
+def _present() -> set[str]:
+    """Return the skills that currently exist.
+
+    Returns:
+        set[str]: Directory names holding a ``SKILL.md``.
+    """
+    return {skill.parent.name for skill in _skill_files()}
+
+
+def test_no_skill_exists_outside_the_roster() -> None:
+    """Eleven names were decided. A twelfth is a decision, not an addition."""
+    assert _present() <= set(ROSTER), sorted(_present() - set(ROSTER))
+
+
+def test_the_roster_is_eleven() -> None:
+    assert len(ROSTER) == 11
+
+
+def test_the_outstanding_skills_are_the_ones_whose_tickets_are_open() -> None:
+    """This fails when the last of them lands, which is when it should be deleted.
+
+    Being explicit beats a silently-passing check over whatever happens to be on
+    disk: the count is not eleven yet, and a test that pretended otherwise would
+    be the kind of green nobody should trust.
+    """
+    outstanding = set(ROSTER) - _present()
+
+    assert outstanding == {"add-recipe", "edit-recipe", "nutrition", "organize"}
+
+
+def test_the_meta_skill_is_never_something_she_types() -> None:
+    """`using-paprika` is injected, so its description must not invite invoking."""
+    front = (
+        (REPO / "skills" / "using-paprika" / "SKILL.md")
+        .read_text(encoding="utf-8")
+        .split("---", 2)[1]
+    )
+
+    assert "does not need invoking" in front
+
+
+def test_the_hook_is_wired_for_the_three_session_starts() -> None:
+    hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+
+    starts = hooks["hooks"]["SessionStart"]
+    assert starts[0]["matcher"] == "startup|clear|compact"
+    assert "${CLAUDE_PLUGIN_ROOT}" in starts[0]["hooks"][0]["command"]
+
+
+def test_the_hook_script_is_executable() -> None:
+    """A hook nobody can run is a hook that fails silently on install."""
+    script = REPO / "hooks" / "session-start.sh"
+
+    assert script.stat().st_mode & 0o111

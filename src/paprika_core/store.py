@@ -12,6 +12,7 @@ in ``tmp_path``; nothing in the session ever sets it.
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,12 @@ UNDO_FILENAME = "undo.sqlite3"
 MEMO_FILENAME = "nutrition.sqlite3"
 USDA_FILENAME = "usda.sqlite3"
 LOG_DIRNAME = "logs"
+
+#: When she last confirmed what is in the house. Machine state, and kept here
+#: rather than beside the Pantry's write path so that the session hook can read
+#: it without importing anything that talks to the network — which measured at
+#: ninety-nine milliseconds against a budget of fifty-four.
+PANTRY_CHECKED_AT = "pantry_checked_at"
 
 
 def home() -> Path:
@@ -230,6 +237,26 @@ def write_credentials(email: str, password: str, header: str = "") -> None:
     body = f"{header}\nPAPRIKA_EMAIL={email}\nPAPRIKA_PASSWORD={password}\n"
     path.write_text(body, encoding="utf-8")
     path.chmod(0o600)
+
+
+def mark_pantry_checked() -> None:
+    """Record that what-she-has was just confirmed by her."""
+    document = read_state()
+    document[PANTRY_CHECKED_AT] = time.time()
+    write_state(document)
+
+
+def pantry_age_days() -> float | None:
+    """Return how long ago she last confirmed what is in the house.
+
+    Returns:
+        float | None: Days, or ``None`` when she never has — which is not the
+            same as zero and must never be shown as it.
+    """
+    stamp = read_state().get(PANTRY_CHECKED_AT)
+    if not isinstance(stamp, (int, float)):
+        return None
+    return max(0.0, (time.time() - float(stamp)) / 86400.0)
 
 
 def save_token(token: str) -> None:

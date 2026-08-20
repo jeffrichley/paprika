@@ -147,7 +147,7 @@ def draft(mirror: Mirror, since: str = "", until: str = "") -> Draft:
     Returns:
         Draft: What to buy, what was taken off, and how old that belief is.
     """
-    from paprika_core import pantry, profile
+    from paprika_core import profile, store
 
     have = [(item.ingredient, _words(item.ingredient)) for item in mirror.pantry()]
     # Longest first, so `olive oil` is matched before `oil` when she has both.
@@ -178,7 +178,7 @@ def draft(mirror: Mirror, since: str = "", until: str = "") -> Draft:
             seen.add(key)
             wanted.append(Wanted(line=line, ingredient=key, recipe=meal.name))
 
-    age = pantry.age_days()
+    age = store.pantry_age_days()
     threshold = _threshold(profile.read())
     return Draft(
         wanted=wanted,
