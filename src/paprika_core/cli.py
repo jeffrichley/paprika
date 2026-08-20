@@ -21,6 +21,7 @@ from paprika_core import (
     bulk,
     freshness,
     pace,
+    plan,
     profile,
     setup,
     store,
@@ -58,6 +59,11 @@ write_app.add_typer(write_recipe_app, name="recipe")
 # prefix. Actually putting it back is a write like any other, and sits inside.
 undo_app = typer.Typer(no_args_is_help=True, help="What could be put back.")
 app.add_typer(undo_app, name="undo")
+
+plan_app = typer.Typer(no_args_is_help=True, help="Read the week's plan.")
+app.add_typer(plan_app, name="plan")
+write_plan_app = typer.Typer(no_args_is_help=True, help="Change the week's plan.")
+write_app.add_typer(write_plan_app, name="plan")
 
 profile_app = typer.Typer(no_args_is_help=True, help="Read your household.")
 app.add_typer(profile_app, name="profile")
@@ -258,6 +264,33 @@ def setup_credentials(
 FRESH_OPTION = typer.Option("--fresh", help="Ask Paprika even if we just asked.")
 
 
+def _mirror_is_now_stale() -> None:
+    """Forget that freshness was recently established.
+
+    Called after **any** write. The Mirror is out of date by our own hand, and
+    the stamp that collapses a burst of reads into one question must not let the
+    next read serve what we just replaced. Every path that changes something in
+    Paprika has to come through here, which is why it is one function rather
+    than a line each of them remembers.
+    """
+    with Mirror(store.mirror_path()) as mirror:
+        mirror.mark_stale()
+
+
+def _after_write(client: PaprikaClient, done: bool) -> None:
+    """Settle up after changing something in Paprika.
+
+    Args:
+        client: A signed-in client.
+        done: Whether this finished the job, in which case her other devices are
+            told to pull. Never per write: seven nights must not buzz her phone
+            seven times.
+    """
+    _mirror_is_now_stale()
+    if done:
+        plan.notify(client)
+
+
 def _refresh(mirror: Mirror, fresh: bool) -> freshness.Freshness:
     """Establish that the Mirror is current before anything reads it.
 
@@ -405,6 +438,139 @@ def recipe_search(
     _run(attempted, work)
 
 
+@plan_app.command("show")
+def plan_show(
+    since: Annotated[str, typer.Option("--from", help="First day, YYYY-MM-DD.")] = "",
+    until: Annotated[str, typer.Option("--to", help="Last day, YYYY-MM-DD.")] = "",
+    fresh: Annotated[bool, FRESH_OPTION] = False,
+) -> None:
+    """Report what is planned between two dates.
+
+    Args:
+        since: First day.
+        until: Last day.
+        fresh: Force the freshness check rather than reusing a recent answer.
+    """
+    attempted = "reading your plan"
+
+    def work() -> Envelope:
+        with _current_mirror(fresh) as (mirror, _checked):
+            meals = [
+                {
+                    "date": meal.date,
+                    "slot": _SLOT_NAMES.get(meal.meal_type, "dinner"),
+                    "name": meal.name,
+                    # Present only when it is one of her recipes; a free-text
+                    # meal is an ordinary case rather than a missing one.
+                    "recipe": meal.recipe_handle,
+                }
+                for meal in mirror.meals(since, until)
+            ]
+        return succeeded(attempted, data={"meals": meals, "count": len(meals)})
+
+    _run(attempted, work)
+
+
+@write_plan_app.command("set")
+def write_plan_set(
+    date: Annotated[str, typer.Option("--date", help="YYYY-MM-DD.")],
+    slot: Annotated[str, typer.Option("--slot", help="breakfast/lunch/dinner/snack.")],
+    recipe: Annotated[
+        str | None, typer.Option("--recipe", help="One of her recipes.")
+    ] = None,
+    name: Annotated[
+        str | None, typer.Option("--name", help="Free text, when it is not a recipe.")
+    ] = None,
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Put one meal on one day.
+
+    Args:
+        date: Which day.
+        slot: Which meal of the day.
+        recipe: One of her recipes.
+        name: Free text, for a meal that is not a recipe.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "saving your plan"
+
+    def work() -> Envelope:
+        if bool(recipe) == bool(name):
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "A meal is either one of your recipes or something written out, "
+                "not both and not neither.",
+                detail="exactly one of --recipe/--name is required",
+            )
+        recipe_uid: str | None = None
+        shown = name or ""
+        if recipe:
+            found, _categories = _resolve([recipe])
+            recipe_uid, shown = found[0]
+
+        client = sign_in()
+        try:
+            with undo.open_run(run) as opened:
+                plan.set_slot(
+                    client,
+                    date=date,
+                    slot=slot,
+                    name=shown,
+                    recipe_uid=recipe_uid,
+                    run=opened,
+                )
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "planned": {date: shown}},
+        )
+
+    _run(attempted, work)
+
+
+@write_plan_app.command("clear")
+def write_plan_clear(
+    date: Annotated[str, typer.Option("--date", help="YYYY-MM-DD.")],
+    slot: Annotated[str, typer.Option("--slot", help="breakfast/lunch/dinner/snack.")],
+    run: Annotated[str | None, RUN_OPTION] = None,
+    done: Annotated[bool, DONE_OPTION] = False,
+) -> None:
+    """Empty one meal on one day.
+
+    Args:
+        date: Which day.
+        slot: Which meal of the day.
+        run: An earlier Run to join.
+        done: Whether this finishes the job.
+    """
+    attempted = "clearing a day on your plan"
+
+    def work() -> Envelope:
+        client = sign_in()
+        try:
+            with undo.open_run(run) as opened:
+                was = plan.clear_slot(client, date=date, slot=slot, run=opened)
+                changed, joined = opened.changed(), opened.id
+            _after_write(client, done)
+        finally:
+            client.close()
+        return Envelope(
+            ok=True,
+            attempted=attempted,
+            changed=changed,
+            data={"run": joined, "cleared": was},
+        )
+
+    _run(attempted, work)
+
+
 @app.command()
 def status(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
     """Report what this machine holds and how long a download would take.
@@ -458,6 +624,12 @@ def status(fresh: Annotated[bool, FRESH_OPTION] = False) -> None:
 
 
 RUN_OPTION = typer.Option("--run", help="Join these changes to an earlier Run.")
+DONE_OPTION = typer.Option(
+    "--done", help="This finishes the job, so tell her other devices to pull."
+)
+
+#: The four slots, as she says them.
+_SLOT_NAMES = {number: name for name, number in plan.SLOTS.items()}
 
 
 def _resolve(handles: list[str]) -> tuple[list[tuple[str, str]], dict[str, str]]:
@@ -511,6 +683,7 @@ def _perform(
         with undo.open_run(run_id) as run:
             outcome = bulk.apply_all(client, targets, run=run)
             joined = run.id
+        _mirror_is_now_stale()
     finally:
         client.close()
 
@@ -625,6 +798,7 @@ def write_undo(
                     write.restore(client, pre_image, run=reversal)
                 changed = reversal.changed()
                 names = reversal.landed_names()
+            _mirror_is_now_stale()
         finally:
             client.close()
         return succeeded(attempted, changed=changed, data={"put_back": names})

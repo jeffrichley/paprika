@@ -142,6 +142,7 @@ class FakePaprika:
 
     recipes: dict[str, dict[str, Any]] = field(default_factory=dict)
     categories: list[dict[str, Any]] = field(default_factory=list)
+    meals: list[dict[str, Any]] = field(default_factory=list)
     counters: dict[str, int] = field(default_factory=dict)
     writes: list[dict[str, Any]] = field(default_factory=list)
     requests: list[tuple[str, str]] = field(default_factory=list)
@@ -156,6 +157,12 @@ class FakePaprika:
     silently_discard: set[str] = field(default_factory=set)
     #: Refuse the stub index once a write has happened, so a Run cannot verify.
     fail_index_after_write: bool = False
+    #: How many times her other devices were told to pull.
+    notified: int = 0
+    #: Refuse the announcement, which must not fail the write it follows.
+    refuse_notify: bool = False
+    #: Every meal array that was accepted, in order.
+    meal_writes: list[list[dict[str, Any]]] = field(default_factory=list)
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -226,6 +233,9 @@ class FakePaprika:
             return _result(dict(self.counters))
         if path == "/api/v2/sync/categories/":
             return _result([dict(c) for c in self.categories])
+        if path == "/api/v2/sync/meals/":
+            # Soft-deleted meals stay in the collection, as everything here does.
+            return _result([dict(m) for m in self.meals])
         if path == "/api/v2/sync/recipes/":
             if self.fail_index_after_write and self.writes:
                 return _error("Try again later.")
@@ -261,7 +271,12 @@ class FakePaprika:
             httpx.Response: ``true``, or a genuine 500 for a malformed body.
         """
         if path == "/api/v2/sync/notify/":
+            if self.refuse_notify:
+                return _error("Not now.")
+            self.notified += 1
             return _result(True)
+        if path == "/api/v2/sync/meals/":
+            return self._post_meals(request)
         # The plural route is the web clipper's scraper, not a bulk write. Using
         # it to create recipes is a 500.
         if path == "/api/v2/sync/recipes/":
@@ -271,6 +286,17 @@ class FakePaprika:
         if path.startswith("/api/v2/sync/recipe/") and path.endswith("/"):
             return self._post_recipe(path.rsplit("/", 2)[-2], request)
         return httpx.Response(404, text="Not found.")
+
+    def _post_meals(self, request: httpx.Request) -> httpx.Response:
+        """Upsert the posted meal array.
+
+        Args:
+            request: The multipart request.
+
+        Returns:
+            httpx.Response: What Paprika would send back.
+        """
+        return _post_meals_impl(self, request)
 
     def _post_recipe(self, uid: str, request: httpx.Request) -> httpx.Response:
         """Store one recipe, or refuse it the way the real server refuses it.
@@ -326,6 +352,40 @@ class FakePaprika:
         self.writes.append(dict(body))
         self.counters["recipes"] = self.counters.get("recipes", 0) + 1
         return _result(True)
+
+
+def _post_meals_impl(fake: FakePaprika, request: httpx.Request) -> httpx.Response:
+    """Upsert a meal array by uid, as the real endpoint does.
+
+    There is no per-uid route for meals — the whole array is posted, and each
+    entry is matched on its uid. ``deleted`` removes.
+
+    Args:
+        fake: The account.
+        request: The multipart request.
+
+    Returns:
+        httpx.Response: ``true``, or a genuine 500 for a malformed body.
+    """
+    body = _extract_gzipped_part(request.content)
+    if not isinstance(body, list):
+        return _refused()
+    for entry in body:
+        if not isinstance(entry, dict) or not entry.get("uid"):
+            return _refused()
+        # `date` is space-separated rather than ISO, and the server is strict.
+        if not isinstance(entry.get("date"), str) or "T" in entry["date"]:
+            return _refused()
+    fake.meal_writes.append([dict(e) for e in body])
+    by_uid = {m["uid"]: m for m in fake.meals}
+    for entry in body:
+        if entry.get("deleted"):
+            by_uid.pop(entry["uid"], None)
+        else:
+            by_uid[entry["uid"]] = dict(entry)
+    fake.meals = list(by_uid.values())
+    fake.counters["meals"] = fake.counters.get("meals", 0) + 1
+    return _result(True)
 
 
 def _extract_gzipped_part(content: bytes) -> Any:

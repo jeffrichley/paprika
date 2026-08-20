@@ -182,6 +182,20 @@ def restore(client: PaprikaClient, pre_image: PreImage, *, run: Run) -> str:
     Raises:
         PaprikaError: On anything the wire says.
     """
+    if pre_image.kind != "recipes":
+        # A meal is posted as an array and its Pre-image may itself be a
+        # removal, so it goes back the way it came rather than through the
+        # recipe path.
+        from paprika_core import plan
+
+        plan.restore(client, pre_image.body)
+        run.capture(
+            pre_image.kind, pre_image.uid, pre_image.name, deepcopy(pre_image.body)
+        )
+        run.mark_landed(pre_image.kind, pre_image.uid)
+        log_event("restore", kind=pre_image.kind)
+        return ""
+
     body = deepcopy(pre_image.body)
     # Re-posting must not carry the removal flag that put it away.
     body.pop(REMOVAL, None)

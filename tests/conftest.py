@@ -26,7 +26,7 @@ import pytest
 from paprika_core import http, store
 from paprika_core.mirror import Mirror
 from tests.fake_paprika import GOOD_EMAIL, GOOD_PASSWORD, TOKEN, FakePaprika
-from tests.library import CATEGORY_TREE, build_library
+from tests.library import CATEGORY_TREE, build_library, build_plan
 
 
 class NetworkAccessError(AssertionError):
@@ -151,6 +151,7 @@ def seeded(fake: FakePaprika) -> FakePaprika:
         fake.recipes[recipe["uid"]] = recipe
     # Change counters, not counts — they move on modification and say nothing
     # about how many of anything there are.
+    fake.meals = build_plan()
     fake.counters = {"recipes": 812, "categories": 44, "meals": 130, "pantry": 61}
     return fake
 

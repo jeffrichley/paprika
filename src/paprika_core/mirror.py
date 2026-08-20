@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS categories (
     parent_uid TEXT,
     order_flag INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS meals (
+    uid        TEXT PRIMARY KEY,
+    date       TEXT NOT NULL DEFAULT '',
+    meal_type  INTEGER NOT NULL DEFAULT 2,
+    recipe_uid TEXT,
+    name       TEXT NOT NULL DEFAULT '',
+    body       TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -70,6 +78,26 @@ class MirroredRecipe:
     rating: int
     total_time: str
     categories: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Meal:
+    """One meal on one date in one slot.
+
+    Attributes:
+        uid: Its identifier, which stays inside the core.
+        date: The day it falls on, as ``YYYY-MM-DD``.
+        meal_type: 0 breakfast, 1 lunch, 2 dinner, 3 snack.
+        recipe_handle: How the session names the recipe, when it is one of hers.
+        name: What it says on the plan — the recipe's title, or free text when
+            she planned something that is not a recipe at all.
+    """
+
+    uid: str
+    date: str
+    meal_type: int
+    recipe_handle: str | None
+    name: str
 
 
 @dataclass(frozen=True)
@@ -160,6 +188,66 @@ class Mirror:
             ),
         )
         self._db.commit()
+
+    def put_meals(self, meals: Iterable[dict[str, Any]]) -> None:
+        """Store the Plan as Paprika holds it.
+
+        The whole object is kept, not just the fields we read, because a write
+        has to echo back everything it was given.
+
+        Args:
+            meals: The meal objects as Paprika returned them.
+        """
+        rows = [
+            (
+                str(meal.get("uid", "")),
+                str(meal.get("date") or "")[:10],
+                int(meal.get("type") or 0),
+                meal.get("recipe_uid") or None,
+                str(meal.get("name") or ""),
+                json.dumps(meal),
+            )
+            for meal in meals
+            if meal.get("uid") and not meal.get("deleted")
+        ]
+        self._db.execute("DELETE FROM meals")
+        self._db.executemany(
+            "INSERT OR REPLACE INTO meals (uid, date, meal_type, recipe_uid, name,"
+            " body) VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        self._db.commit()
+
+    def meals(self, since: str = "", until: str = "") -> list[Meal]:
+        """Return the Plan between two dates, inclusive.
+
+        Args:
+            since: The first date, as ``YYYY-MM-DD``. Empty for no lower bound.
+            until: The last date, as ``YYYY-MM-DD``. Empty for no upper bound.
+
+        Returns:
+            list[Meal]: The meals, by date then slot.
+        """
+        handles = {
+            row["uid"]: row["handle"]
+            for row in self._db.execute("SELECT uid, handle FROM recipes")
+        }
+        rows = self._db.execute(
+            "SELECT uid, date, meal_type, recipe_uid, name FROM meals"
+            " WHERE (? = '' OR date >= ?) AND (? = '' OR date <= ?)"
+            " ORDER BY date, meal_type",
+            (since, since, until, until),
+        )
+        return [
+            Meal(
+                uid=row["uid"],
+                date=row["date"],
+                meal_type=row["meal_type"],
+                recipe_handle=handles.get(row["recipe_uid"] or ""),
+                name=row["name"],
+            )
+            for row in rows
+        ]
 
     def put_categories(self, categories: Iterable[dict[str, Any]]) -> None:
         """Store the whole category tree.
@@ -381,6 +469,15 @@ class Mirror:
     def mark_checked(self) -> None:
         """Record that Paprika was just asked whether anything had changed."""
         self.set_meta(CHECKED_AT, time.time())
+
+    def mark_stale(self) -> None:
+        """Forget that freshness was recently established.
+
+        Called after we ourselves change something in Paprika. The stamp exists
+        to collapse a burst of *reads* into one question; it must never let a
+        read serve a Plan that our own write just made out of date.
+        """
+        self.set_meta(CHECKED_AT, 0.0)
 
     def checked_within(self, seconds: float) -> bool:
         """Say whether freshness was established recently enough to reuse.
