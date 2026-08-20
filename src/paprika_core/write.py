@@ -23,6 +23,8 @@ they should not be flattened away by anyone who finds this verbose.
 from __future__ import annotations
 
 import secrets
+import time
+import uuid
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
@@ -113,6 +115,114 @@ def _prepare(fetched: dict[str, Any], mutated: dict[str, Any]) -> dict[str, Any]
     return payload
 
 
+#: Every field a recipe carries, at the value an empty one holds. The core owns
+#: this list so that a create still never lets a caller choose the key set —
+#: which is the same rule as an edit, arrived at from the other direction.
+#:
+#: The three photo fields are `None` rather than `""`, which Paprika is fussy
+#: about, and the seven undocumented fields are here precisely because they are
+#: the ones nobody would think to include.
+BLANK: dict[str, Any] = {
+    "name": "",
+    "ingredients": "",
+    "directions": "",
+    "description": None,
+    "notes": "",
+    "nutritional_info": "",
+    "servings": "",
+    "difficulty": "",
+    "prep_time": "",
+    "cook_time": "",
+    "total_time": "",
+    "rating": 0,
+    "categories": [],
+    "source": "",
+    "source_url": "",
+    "image_url": "",
+    "photo": None,
+    "photo_hash": None,
+    "photo_large": None,
+    "on_favorites": False,
+    "on_grocery_list": None,
+    "in_trash": False,
+    "is_pinned": False,
+    "scale": None,
+    "cook_minutes": None,
+    "prep_minutes": None,
+    "total_minutes": None,
+    "servings_min": None,
+    "servings_max": None,
+    "cookbook_uid": None,
+    "metadata_version": None,
+}
+
+
+def blank_recipe(uid: str) -> dict[str, Any]:
+    """Return an empty recipe, every field present.
+
+    Args:
+        uid: The identity to give it. Client-minted, uppercase, and immutable
+            once created — it is also the name of its photo directory.
+
+    Returns:
+        dict[str, Any]: The object, ready for a mutation to fill in.
+    """
+    fresh = deepcopy(BLANK)
+    fresh["uid"] = uid
+    fresh["created"] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    fresh[CHANGE_MARKER] = new_change_marker()
+    return fresh
+
+
+def create(
+    client: PaprikaClient,
+    mutate: Mutation,
+    *,
+    run: Run,
+    kind: str = "recipes",
+) -> tuple[str, str]:
+    """Make a new recipe from a blank one and a set of named changes.
+
+    A create has nothing to fetch, so the object it starts from is the core's
+    own blank rather than anything a caller supplied. The rule is unchanged: a
+    caller may fill fields in, and may never decide which fields exist.
+
+    Args:
+        client: A signed-in client.
+        mutate: Called with the blank recipe, to fill in.
+        run: The Run to capture the Pre-image into.
+        kind: What kind of thing this is, for the envelope's ``changed`` map.
+
+    Returns:
+        tuple[str, str]: The new recipe's identity and its name.
+
+    Raises:
+        PaprikaError: When the result would be invalid, or on anything the wire
+            says. A recipe with no name is refused: Paprika treats the field as
+            required, and an untitled recipe is unfindable besides.
+    """
+    uid = str(uuid.uuid4()).upper()
+    blank = blank_recipe(uid)
+    mutated = deepcopy(blank)
+    mutate(mutated)
+
+    if not str(mutated.get("name") or "").strip():
+        raise PaprikaError(
+            Code.REFUSED_LOCALLY,
+            "A recipe needs a name before it can be saved.",
+            detail="create without a name",
+        )
+    payload = _prepare(blank, mutated)
+
+    # The Pre-image of something that did not exist is its removal, which is
+    # what undoing a create has to post.
+    run.capture(kind, uid, str(payload["name"]), dict(payload, deleted=True))
+    client._post_object(RECIPE_PATH.format(uid=uid), payload, "saving a new recipe")
+    run.mark_landed(kind, uid)
+    log_event("create", kind=kind, fields=sorted(payload))
+    return uid, str(payload["name"])
+
+
 def write(
     client: PaprikaClient,
     uid: str,
@@ -201,9 +311,12 @@ def restore(client: PaprikaClient, pre_image: PreImage, *, run: Run) -> str:
         log_event("restore", kind=pre_image.kind)
         return ""
 
+    # The Pre-image is posted back exactly as it was captured, removal flag and
+    # all. For an edit that flag is absent, because the v2 recipe object has no
+    # such field to fetch. For a create it is the whole point: what was there
+    # before is *nothing*, and the only way to say that on this API is to post
+    # the removal. Stripping it here would make an unwanted recipe un-undoable.
     body = deepcopy(pre_image.body)
-    # Re-posting must not carry the removal flag that put it away.
-    body.pop(REMOVAL, None)
     payload = _prepare(body, body)
 
     run.capture(pre_image.kind, pre_image.uid, pre_image.name, deepcopy(pre_image.body))
