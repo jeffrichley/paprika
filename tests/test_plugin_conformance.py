@@ -966,3 +966,20 @@ def test_editing_shows_a_free_text_value_whole() -> None:
         "Narrow is about which fields, never about how much of one she gets to read"
         in body
     )
+
+
+def test_the_carrier_offer_triggers_on_the_word_not_the_outcome() -> None:
+    """A recipe caught by one carrier can name another that is not recorded.
+
+    Found live: "Barbecue sauce or chili sauce, if desired" was flagged
+    correctly via barbecue sauce, so nothing felt missed and chili sauce went
+    unrecorded — until the next recipe names it alone.
+    """
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "whether or not the check found this recipe" in body
+    assert "Not the outcome, which is exactly the case where nobody notices" in body
