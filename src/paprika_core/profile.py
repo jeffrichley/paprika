@@ -42,7 +42,7 @@ LEANING = "_leaning"
 DIRECTIONS = ("higher", "lower", "steady")
 
 #: Free-text list fields a person carries.
-PERSON_LISTS = ("dislikes", "loves", "allergies")
+PERSON_LISTS = ("dislikes", "loves", "allergies", "severe")
 
 HEADER = """\
 # paprika — your household
@@ -86,6 +86,10 @@ class Person:
         allergies: Hard constraints. On any meal this person eats, they bind
             the **whole** meal — the cook only gets one pot, and nobody is
             handed a separate dinner.
+        severe: The ones where **traces matter**: the same knife, board, oil,
+            pan and serving spoon are in scope, not only the ingredient list.
+            Deliberately a flag rather than a scale — medicine grades these
+            finely, and exactly one distinction changes what a cook does.
         usually: When a guest normally comes, in her words: ``Sundays``. Held so
             the question can be *"Monica on Sunday as usual?"* rather than an
             open one. **Recorded so it can be asked about, never so it can be
@@ -96,6 +100,7 @@ class Person:
     dislikes: tuple[str, ...] = ()
     loves: tuple[str, ...] = ()
     allergies: tuple[str, ...] = ()
+    severe: tuple[str, ...] = ()
     usually: str = ""
 
 
@@ -149,6 +154,21 @@ class Profile:
         found = list(self.allergies)
         for person in self.people.values():
             found += [name for name in person.allergies if name not in found]
+        return tuple(found)
+
+    @property
+    def always_severe(self) -> tuple[str, ...]:
+        """Return the always-on allergies where traces matter.
+
+        So a caller does not have to walk the family to find out how careful to
+        be — and so that "careful" is a fact it reads rather than one it infers.
+
+        Returns:
+            tuple[str, ...]: Allergy names, deduplicated, in a stable order.
+        """
+        found: list[str] = []
+        for person in self.people.values():
+            found += [name for name in person.severe if name not in found]
         return tuple(found)
 
     @property
@@ -246,6 +266,7 @@ def read() -> Profile:
                 dislikes=_strings(entry.get("dislikes")),
                 loves=_strings(entry.get("loves")),
                 allergies=_strings(entry.get("allergies")),
+                severe=_strings(entry.get("severe")),
             )
 
     guests: dict[str, Person] = {}
@@ -259,6 +280,7 @@ def read() -> Profile:
                 dislikes=_strings(entry.get("dislikes")),
                 loves=_strings(entry.get("loves")),
                 allergies=_strings(entry.get("allergies")),
+                severe=_strings(entry.get("severe")),
                 usually=str(entry.get("usually") or ""),
             )
 
@@ -458,6 +480,37 @@ def _entry_in(
     return entry
 
 
+def _remove_person(
+    document: tomlkit.TOMLDocument, table_name: str, who: str, operator: str
+) -> None:
+    """Take somebody out of the household entirely.
+
+    Args:
+        document: The Profile document.
+        table_name: ``people`` or ``guests``.
+        who: Their name, as stored.
+        operator: Must be ``-=``.
+
+    Raises:
+        PaprikaError: When set rather than removed, or when nobody by that name
+            is there. **A typo must not read as a completed removal** — silently
+            succeeding would report `people.Moncia-=` done while Monica is still
+            in the family, and the next thing anyone checks is the count.
+    """
+    if operator != "-=":
+        raise _refuse(
+            "A person is taken out rather than set. Use `-=`.",
+            f"non-removal operator on {table_name}.{who}",
+        )
+    table = document.get(table_name)
+    if not isinstance(table, dict) or who not in table:
+        raise _refuse(
+            f"There's nobody called {who!r} to take out.",
+            f"unknown {table_name} entry {who!r}",
+        )
+    del table[who]
+
+
 def _apply_usually(
     document: tomlkit.TOMLDocument, parts: list[str], operator: str, value: str
 ) -> None:
@@ -505,6 +558,14 @@ def _apply_person(
         PaprikaError: On a path that names no list, or a whole-value write.
     """
     table_name = parts[0]
+
+    # Two parts is the person themselves, and the only removal here. Without it
+    # the move from `people` to `guests` in #96 could be started and not
+    # finished: clearing every field leaves the name, because somebody is
+    # admitted on *being a table* rather than on holding anything.
+    if len(parts) == 2:
+        _remove_person(document, table_name, parts[1], operator)
+        return
 
     # When a guest normally comes is a single fact, not a list, and it is the
     # one thing here that is set outright.

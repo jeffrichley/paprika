@@ -796,3 +796,18 @@ def test_planning_a_week_asks_who_is_coming() -> None:
 
     assert "guests_to_ask_about" in body
     assert "before you draft" in body
+
+
+def test_the_judgement_says_what_a_severe_allergy_puts_in_scope() -> None:
+    """#100. "No pineapple in this recipe" does not cover a shared board."""
+    # Whitespace-collapsed: these files are wrapped at 80 columns, so a phrase
+    # worth asserting is exactly the kind that lands across a line break.
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "traces matter" in body
+    for thing in ("knife", "board", "oil", "serving spoon"):
+        assert thing in body, thing

@@ -60,6 +60,15 @@ appear in the Profile and they differ only in which meals they are at:
   and no others. Constraining a Tuesday because somebody is coming on Sunday is
   how a real allergy ends up unrecorded, which is worse than either.
 
+**Some allergies put more than the ingredient list in scope.** When the Profile
+marks one *traces matter*, the knife, the board, the oil, the pan and the serving
+spoon are part of the answer — so is cooking order, and so is anything fried in
+the same fat. A recipe that never lists the ingredient can still be unsafe, and
+"this one doesn't have any in it" is not the whole check.
+
+That is a flag rather than a scale on purpose. Medicine grades these finely;
+exactly one distinction changes what a cook does.
+
 Which meals a guest is at is **hers to say**:
 
 | | |

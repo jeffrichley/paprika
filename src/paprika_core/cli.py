@@ -1676,11 +1676,16 @@ def profile_show() -> None:
             # plus every family member's. A skill should read this rather than
             # assembling the rule itself.
             "always_avoid": list(read.always_avoid),
+            # Of those, the ones where traces matter — shared knife, board, oil,
+            # serving spoon. Read rather than inferred, because "how careful"
+            # is not something to work out from a word.
+            "always_severe": list(read.always_severe),
             "people": {
                 name: {
                     "dislikes": list(person.dislikes),
                     "loves": list(person.loves),
                     "allergies": list(person.allergies),
+                    "severe": list(person.severe),
                 }
                 for name, person in read.people.items()
             },
@@ -1691,6 +1696,7 @@ def profile_show() -> None:
                     "dislikes": list(guest.dislikes),
                     "loves": list(guest.loves),
                     "allergies": list(guest.allergies),
+                    "severe": list(guest.severe),
                     "usually": guest.usually,
                 }
                 for name, guest in read.guests.items()

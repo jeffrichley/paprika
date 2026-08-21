@@ -482,3 +482,86 @@ def test_a_guest_with_an_allergy_is_a_question_the_week_has_to_ask(
 
     # Only the one whose constraint could hurt somebody forces the question.
     assert profile.read().guests_to_ask_about == ("monica",)
+
+
+# --- Removing somebody, and how careful to be --------------------------------
+
+
+def test_a_person_can_be_removed(paprika_home: Path) -> None:
+    """#99. Without this the migration to guests cannot be finished.
+
+    Monica moved from `people` to `guests` and her old entry stayed, so the
+    family read as five where it was three. Clearing every field left the name
+    behind, because a person is admitted on being a table rather than on holding
+    anything.
+    """
+    profile.apply("people.monica.dislikes+=okra")
+    assert "monica" in profile.read().people
+
+    profile.apply("people.monica-=")
+
+    assert "monica" not in profile.read().people
+
+
+def test_a_guest_can_be_removed_the_same_way(paprika_home: Path) -> None:
+    profile.apply("guests.jordan.allergies+=pineapple")
+
+    profile.apply("guests.jordan-=")
+
+    assert profile.read().guests == {}
+
+
+def test_removing_somebody_who_is_not_there_is_refused(paprika_home: Path) -> None:
+    """A typo must not read as a completed removal.
+
+    Silently succeeding would mean `people.Moncia-=` reports done while Monica
+    is still there, and the next thing anybody checks is the family count.
+    """
+    profile.apply("people.monica.dislikes+=okra")
+
+    with pytest.raises(PaprikaError):
+        profile.apply("people.moncia-=")
+
+    assert "monica" in profile.read().people
+
+
+def test_a_severe_allergy_is_recorded_apart_from_the_rest(paprika_home: Path) -> None:
+    """#100. "DED allergic" and a mild intolerance are not the same instruction.
+
+    Severe means traces matter: the same knife, board, oil and serving spoon are
+    in scope. Recorded per person, beside their allergies, because it is a fact
+    about them.
+    """
+    profile.apply("guests.jordan.allergies+=pineapple")
+    profile.apply("guests.jordan.severe+=pineapple")
+
+    guest = profile.read().guests["jordan"]
+    assert guest.allergies == ("pineapple",)
+    assert guest.severe == ("pineapple",)
+
+
+def test_marking_one_severe_does_not_make_it_an_allergy_by_itself(
+    paprika_home: Path,
+) -> None:
+    """The two lists are read together, and neither implies the other.
+
+    Severity says how careful to be about something already known to be an
+    allergy. It is not a second way to record one.
+    """
+    profile.apply("guests.jordan.severe+=pineapple")
+
+    read = profile.read()
+    assert read.guests["jordan"].severe == ("pineapple",)
+    assert read.guests["jordan"].allergies == ()
+    # And it is not silently promoted into what a week must ask about.
+    assert read.guests_to_ask_about == ()
+
+
+def test_a_family_member_s_severe_allergy_reaches_the_always_on_view(
+    paprika_home: Path,
+) -> None:
+    """A caller should not have to walk the people to find out."""
+    profile.apply("people.cynthia.allergies+=shellfish")
+    profile.apply("people.cynthia.severe+=shellfish")
+
+    assert profile.read().always_severe == ("shellfish",)

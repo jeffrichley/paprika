@@ -203,7 +203,11 @@ def _allergy_line(read: profile.Profile) -> list[str]:
     lines = []
     if read.allergies_answered or read.always_avoid:
         if read.always_avoid:
-            lines.append(f"Allergies, every meal: {', '.join(read.always_avoid)}.")
+            named = [
+                f"{name} (traces matter)" if name in read.always_severe else name
+                for name in read.always_avoid
+            ]
+            lines.append(f"Allergies, every meal: {', '.join(named)}.")
         else:
             lines.append("Allergies: none in this household.")
     if read.guests_to_ask_about:
@@ -211,7 +215,13 @@ def _allergy_line(read: profile.Profile) -> list[str]:
         # meals they are at and nothing else, and a week has to ask whether they
         # are coming rather than assume it either way.
         who = ", ".join(
-            f"{name} ({', '.join(read.guests[name].allergies)})"
+            "{} ({})".format(
+                name,
+                ", ".join(
+                    f"{a} — traces matter" if a in read.guests[name].severe else a
+                    for a in read.guests[name].allergies
+                ),
+            )
             for name in read.guests_to_ask_about
         )
         lines.append(f"Guests who sometimes eat here: {who}.")
