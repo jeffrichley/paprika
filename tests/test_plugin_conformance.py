@@ -776,3 +776,23 @@ def test_an_allergy_is_never_stored_as_a_dislike() -> None:
     )
 
     assert "Dislikes are the opposite" in body
+
+
+def test_the_judgement_scopes_an_allergy_to_the_meal_not_the_week() -> None:
+    """#96. "One pot" is an argument about a meal and was read as permanent."""
+    body = (REPO / "skills" / "shared" / "cooking-judgement.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "every plate at that meal" in body
+    assert "not about a week" in body
+    # And the two cases resolve differently, on something observable.
+    assert "Planning a **week**" in body and "A **single meal**" in body
+
+
+def test_planning_a_week_asks_who_is_coming() -> None:
+    """Silence in either direction is the failure this exists to stop."""
+    body = (REPO / "skills" / "plan-week" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "guests_to_ask_about" in body
+    assert "before you draft" in body

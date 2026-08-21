@@ -1672,10 +1672,32 @@ def profile_show() -> None:
             "readable": read.readable,
             "allergies_answered": read.allergies_answered,
             "allergies": list(read.allergies),
+            # What binds every meal whoever is at the table: the household's own
+            # plus every family member's. A skill should read this rather than
+            # assembling the rule itself.
+            "always_avoid": list(read.always_avoid),
             "people": {
-                name: {"dislikes": list(person.dislikes), "loves": list(person.loves)}
+                name: {
+                    "dislikes": list(person.dislikes),
+                    "loves": list(person.loves),
+                    "allergies": list(person.allergies),
+                }
                 for name, person in read.people.items()
             },
+            # People who come sometimes. Their constraints apply to the meals
+            # they are at and to nothing else.
+            "guests": {
+                name: {
+                    "dislikes": list(guest.dislikes),
+                    "loves": list(guest.loves),
+                    "allergies": list(guest.allergies),
+                    "usually": guest.usually,
+                }
+                for name, guest in read.guests.items()
+            },
+            # Whose presence a week has to establish before drafting. Only those
+            # carrying an allergy — a dislike is not worth interrupting for.
+            "guests_to_ask_about": list(read.guests_to_ask_about),
             "household_size": read.household_size,
             "fast_nights": list(read.fast_nights),
             "away": list(read.away),

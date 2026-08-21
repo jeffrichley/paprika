@@ -66,7 +66,9 @@ def test_a_finished_setup_reports_the_four_facts(
     assert "Setup: complete." in said
     assert "Plan for" in said
     assert "Pantry last confirmed today." in said
-    assert "Allergies: peanuts." in said
+    # Scoped rather than bare: what binds every meal, as against a guest's,
+    # which binds only the meals they are at.
+    assert "Allergies, every meal: peanuts." in said
 
 
 def test_the_plan_carries_literal_dates(signed_in: Path, seeded: FakePaprika) -> None:
@@ -565,3 +567,25 @@ def test_the_facts_failing_is_said_rather_than_dropped(
     # But the missing half is named, rather than looking like a machine that
     # simply has nothing planned.
     assert "could not be read" in block
+
+
+def test_a_guest_with_an_allergy_is_named_but_kept_apart(paprika_home: Path) -> None:
+    """#96. Monica is allergic to tomatoes and eats here once a week.
+
+    Folding her into the always-avoid line would constrain six nights she is
+    not there for — which is what the old model did and why she went unrecorded.
+    Leaving her out of the primer entirely would mean a week could not know to
+    ask. So she is named, and named separately.
+    """
+    for step in setup.REQUIRED:
+        setup.record(step)
+    from paprika_core import profile
+
+    profile.apply("people.cynthia.allergies+=shellfish")
+    profile.apply("guests.monica.allergies+=tomatoes")
+
+    said = "\n".join(primer.facts(TODAY))
+
+    assert "Allergies, every meal: shellfish." in said
+    assert "tomatoes" not in said.split("Guests")[0]
+    assert "Guests who sometimes eat here: monica (tomatoes)." in said
