@@ -25,14 +25,45 @@ throw anything away.
 
 from __future__ import annotations
 
-#: Canonical name to the spellings people use for it.
+#: Canonical name to the words that mean it — both the ones she might type when
+#: recording an allergy and the ones a recipe uses when listing an ingredient.
+#: Those are different vocabularies and this table serves both: nobody records
+#: an allergy to "double cream", and no recipe says "dairy".
+#:
+#: **Err toward inclusion.** This is a detector, so a false positive costs
+#: somebody ten seconds reading a line, and a false negative costs what a false
+#: negative in this domain costs. `flour` under gluten will occasionally flag a
+#: rice-flour recipe, and that is the direction to be wrong in.
 _SYNONYMS: dict[str, tuple[str, ...]] = {
     "celery": ("celery", "celeriac"),
-    "eggs": ("egg", "eggs"),
+    "eggs": ("egg", "eggs", "mayonnaise", "meringue"),
     "fish": ("fish", "finned fish", "anchovy", "anchovies"),
-    "gluten": ("gluten", "wheat", "barley", "rye", "spelt"),
+    "gluten": (
+        "gluten",
+        "wheat",
+        "barley",
+        "rye",
+        "spelt",
+        "flour",
+        "breadcrumb",
+        "breadcrumbs",
+        "pasta",
+        "couscous",
+        "semolina",
+    ),
     "lupin": ("lupin", "lupine"),
-    "milk": ("milk", "dairy", "lactose", "cheese"),
+    "milk": (
+        "milk",
+        "dairy",
+        "lactose",
+        "cheese",
+        "butter",
+        "cream",
+        "yoghurt",
+        "yogurt",
+        "ghee",
+        "custard",
+    ),
     "molluscs": ("mollusc", "molluscs", "mollusk", "mollusks", "squid", "octopus"),
     "mustard": ("mustard",),
     "peanuts": ("peanut", "peanuts", "groundnut", "groundnuts"),
@@ -103,3 +134,23 @@ def normalise(word: str) -> str | None:
     # name is still a word the session can act on, and guessing at what she
     # meant is how "nightshades" quietly becomes "tomatoes".
     return cleaned
+
+
+def spellings_for(name: str) -> tuple[tuple[str, ...], bool]:
+    """Return the words to look for, and whether we know any beyond her own.
+
+    Args:
+        name: An allergy, canonical or in her words.
+
+    Returns:
+        tuple[tuple[str, ...], bool]: The terms to search, and ``True`` when the
+            only term is the word she typed. That flag is the honest half: for
+            ``milk`` we look for cream, butter and cheese, and for ``tomatoes``
+            we look for *tomatoes* and will not find ketchup. A caller that does
+            not say which happened is publishing a clean result that means two
+            different things.
+    """
+    known = _SYNONYMS.get(name.strip().casefold())
+    if known:
+        return known, False
+    return (name.strip().casefold(),), True

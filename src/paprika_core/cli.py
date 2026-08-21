@@ -20,6 +20,7 @@ from typing import Annotated, Any
 import typer
 
 from paprika_core import (
+    allergens,
     bulk,
     freshness,
     groceries,
@@ -42,6 +43,7 @@ from paprika_core import (
 from paprika_core import (
     primer as primer_module,
 )
+from paprika_core import recipes as recipes_module
 from paprika_core.envelope import Envelope, ErrorDetail, failed, succeeded
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import RECIPE_INDEX_PATH, PaprikaClient
@@ -472,6 +474,92 @@ def recipe_compare(
                 detail=f"unknown handles: {found['missing']}",
             )
         return succeeded(attempted, data=found)
+
+    _run(attempted, work)
+
+
+@recipe_app.command("check")
+def recipe_check(
+    handles: Annotated[
+        list[str] | None,
+        typer.Argument(help="Which recipes. Defaults to the whole Library."),
+    ] = None,
+    against: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--for", help="An allergy. Defaults to what the household avoids."
+        ),
+    ] = None,
+) -> None:
+    """Find allergens a recipe **names**.
+
+    A detector, not a clearance. It can prove presence and never absence: a hit
+    means the recipe says the word, and no hits means nothing at all, because
+    ketchup is tomatoes and this cannot know that. Run it *after* reading the
+    recipes, never instead — a backstop that becomes the primary check leaves
+    nothing behind it.
+
+    It exists because two careful readings of the same thirty-six recipes both
+    made errors, and the one that mattered was an allergen named in a notes
+    field. Judgement catches what a word search cannot; a word search does not
+    get tired.
+
+    Args:
+        handles: Which recipes to look at.
+        against: Which allergies to look for.
+    """
+    attempted = "looking for allergens a recipe names"
+
+    def work() -> Envelope:
+        read = profile.read()
+        wanted = against or list(read.always_avoid) or []
+        if not wanted:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                "Nothing to look for — say which allergy, or record one.",
+                detail="no allergies to check",
+            )
+
+        searched: list[str] = []
+        literal_only: list[str] = []
+        by_term: dict[str, tuple[str, ...]] = {}
+        for name in wanted:
+            spellings, alone = allergens.spellings_for(name)
+            by_term[name] = spellings
+            searched += [s for s in spellings if s not in searched]
+            if alone:
+                literal_only.append(name)
+
+        found: list[dict[str, Any]] = []
+        with Mirror(store.mirror_path()) as mirror:
+            targets = handles or [r.handle for r in mirror.recipes()]
+            for handle in targets:
+                for name, spellings in by_term.items():
+                    lines = recipes_module.lines_matching(mirror, handle, spellings)
+                    if not lines:
+                        continue
+                    body = mirror.recipe_body(handle) or {}
+                    found.append(
+                        {
+                            "handle": handle,
+                            "name": str(body.get("name") or ""),
+                            "allergy": name,
+                            "lines": lines,
+                        }
+                    )
+
+        return succeeded(
+            attempted,
+            data={
+                "found": found,
+                # Which words were actually looked for, and which allergies had
+                # nothing but her own word behind them. A caller that reports a
+                # clean result without this is reporting two different things
+                # with the same sentence.
+                "searched": searched,
+                "literal_only": literal_only,
+            },
+        )
 
     _run(attempted, work)
 
