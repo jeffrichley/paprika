@@ -727,3 +727,27 @@ def test_the_readme_says_the_two_halves_are_updated_together() -> None:
     assert "uv tool upgrade" in updating
     assert "/plugin update" in updating
     assert "out of step" in updating
+
+
+def test_the_manifest_does_not_name_the_standard_hooks_file() -> None:
+    """Claude Code loads `hooks/hooks.json` on its own.
+
+    Naming it in the manifest as well is a double-load, and it surfaces to the
+    user as a red error on every `/plugin` listing:
+
+        Failed to load hooks from .../hooks/hooks.json: Duplicate hooks file
+        detected ... The standard hooks/hooks.json is loaded automatically, so
+        manifest.hooks should only reference *additional* hook files.
+
+    Checked against every installed plugin on the machine where this was found:
+    of the twelve carrying a `hooks/hooks.json`, this was the only one that
+    declared it.
+    """
+    manifest = json.loads(
+        (REPO / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+
+    named = manifest.get("hooks")
+    assert named is None or "hooks/hooks.json" not in str(named)
+    # And the file it would have named is still there, still wired.
+    assert (REPO / "hooks" / "hooks.json").is_file()
