@@ -918,3 +918,51 @@ def test_the_judgement_says_a_wide_result_may_be_true() -> None:
     )
 
     assert "A lot of hits is not the same as a broken check" in body
+
+
+def test_adding_a_recipe_shows_every_field_it_will_write() -> None:
+    """#85. The skill's own list said "title, ingredients, steps".
+
+    Notes were not on it, which is why a confirmation reported *"all four
+    notes"* rather than the four lines — and the one line she would have
+    objected to went past her. A count is not a showing.
+    """
+    body = " ".join(
+        (REPO / "skills" / "add-recipe" / "SKILL.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "In full means every field you are about to write, whole" in body
+    assert "**The notes**, verbatim — every line of them" in body
+    assert "**Never a count.**" in body
+
+
+def test_adding_a_recipe_knows_an_aside_is_not_content() -> None:
+    """A field's content is what she put under that field's label."""
+    body = " ".join(
+        (REPO / "skills" / "add-recipe" / "SKILL.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "What she said to you is not part of the recipe" in body
+    assert "Position is not a label" in body
+
+
+def test_editing_shows_a_free_text_value_whole() -> None:
+    """`edit-recipe` shows one field, not the recipe — deliberately, and rightly.
+
+    But narrow is about *which fields*. A multi-line notes value summarised into
+    "the notes" is the #85 failure arriving by the other door.
+    """
+    body = " ".join(
+        (REPO / "skills" / "edit-recipe" / "SKILL.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert (
+        "Narrow is about which fields, never about how much of one she gets to read"
+        in body
+    )

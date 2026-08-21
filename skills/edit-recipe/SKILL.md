@@ -20,7 +20,9 @@ something that can destroy it, because in the wrong shape it is.
    longer version of this if she is vague.
 2. **`paprika recipe get <handle>`** to see what is actually there now.
 3. **Show her the change before making it** — the old value and the new one, not
-   the whole recipe.
+   the whole recipe. When the value is free text, that means **both of them
+   whole**: every line of the old notes and every line of the new. Narrow is
+   about which fields, never about how much of one she gets to read.
 4. **Make it on her yes.**
 
 > **Nana's Soda Bread** — servings: `8` → `12`. Change it?

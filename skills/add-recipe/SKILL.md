@@ -23,6 +23,25 @@ structure, and it is ours.
 abbreviated. Her phrasing stays her phrasing. She is going to cook from this,
 and she wants the recipe she gave you.
 
+## What she said to you is not part of the recipe
+
+A field's content is **what she put under that field's label**, and nothing else.
+
+Text that sits outside any label — after the last labelled block, or between
+them — is her talking to you. *"Yes, both categories are deliberate."* *"Once
+it's saved, put this picture on it."* Those are instructions. The second was
+read correctly as one; the first was saved into her notes.
+
+**When you cannot tell whether a line is an aside or content, ask.** That is a
+scope question and it is always fair. Do not resolve it by where the line
+happens to sit.
+
+| The thought | What is true |
+|---|---|
+| "She typed it, so she wants it in the recipe" | She typed it to **you**. |
+| "It came after the notes, so it is a note" | Position is not a label. She wrote the labels. |
+| "It's harmless, leave it in" | She reads this in a kitchen in two years and has no idea why it is there. |
+
 ## Anything not there stays empty
 
 If the page or the dictation does not say how many it serves, **leave servings
@@ -55,8 +74,27 @@ recipe survives, and that is not a decision to make on her behalf.
 
 ## Render it whole, then ask
 
-Show the drafted recipe in full — title, ingredients, steps — and ask about
-**that recipe**. Not "shall I save these", not a yes she gave earlier.
+Show the drafted recipe in full and ask about **that recipe**. Not "shall I save
+these", not a yes she gave earlier.
+
+**In full means every field you are about to write, whole.** Show, in this order:
+
+1. **The title**, as it will be saved.
+2. **Every ingredient line**, verbatim.
+3. **Every step**, verbatim.
+4. **The notes**, verbatim — every line of them.
+5. **Every other field you are setting**: servings, difficulty, the three times,
+   source, source URL, nutrition, categories. With its value, not its name.
+6. **What you left blank**, and that it was blank because she did not say it.
+
+**Never a count.** Not "all four notes", not "the usual fields", not "everything
+you gave me". A count is not a showing, and she cannot agree to text she has not
+read. That failure has happened here: a line addressed to the assistant was
+saved into her notes and the confirmation reported the number four rather than
+the four lines, so the one she would have objected to went past her.
+
+Free text is where this matters most — notes, ingredients, directions. Those are
+the fields where a wrong line survives for years and is read in a kitchen.
 
 ## Saving
 
