@@ -1,6 +1,6 @@
 [project]
 name = "paprika-plugin"
-version = "0.7.0"
+version = "0.7.1"
 description = "A Claude Code plugin for managing a Paprika 3 recipe library and planning a week of meals."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -50,7 +50,7 @@ dev = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.7.0"
+version = "0.7.1"
 version_files = [
     "pyproject.toml:^version",
     ".claude-plugin/plugin.json:version",
