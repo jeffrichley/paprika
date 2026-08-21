@@ -32,6 +32,7 @@ from typing import Any
 from paprika_core.errors import Code, PaprikaError
 from paprika_core.http import PaprikaClient
 from paprika_core.log import log_event
+from paprika_core.photos import Prepared
 from paprika_core.undo import PreImage, Run
 
 RECIPE_PATH = "/api/v2/sync/recipe/{uid}/"
@@ -287,6 +288,7 @@ def write(
     *,
     run: Run,
     kind: str = "recipes",
+    photo: Prepared | None = None,
 ) -> str:
     """Change one recipe, and keep what it was.
 
@@ -303,6 +305,11 @@ def write(
             cannot substitute an object of its own.
         run: The Run to capture the Pre-image into.
         kind: What kind of thing this is, for the envelope's ``changed`` map.
+        photo: A picture to attach, sent in this same request. **The two photo
+            fields are set here, from the bytes**, rather than by the mutation —
+            a caller that could name its own ``photo_hash`` could name one that
+            describes nothing, and the whole point of the digest is that it
+            describes what was sent.
 
     Returns:
         str: The change marker written, so a bulk Run can verify itself later.
@@ -320,11 +327,32 @@ def write(
 
     run.capture(kind, uid, str(fetched.get("name") or ""), deepcopy(fetched))
 
+    if photo is not None and fetched.get("photo"):
+        # Replacing is refused rather than supported, and this is the only place
+        # that can know. A Pre-image is JSON; it cannot hold the bytes that were
+        # there before, and `photo_url` expires within hours — so a replaced
+        # picture has nothing to go back to. Undoable is not a property this
+        # plugin trades away for a convenience.
+        raise PaprikaError(
+            Code.REFUSED_LOCALLY,
+            "That recipe already has a picture, and swapping it couldn't be "
+            "undone. Take the old one off in Paprika first, then add this one.",
+            detail=f"{uid} already carries a photo",
+        )
+
     mutated = deepcopy(fetched)
     mutate(mutated)
+    if photo is not None:
+        mutated["photo"] = photo.filename
+        mutated["photo_hash"] = photo.thumbnail_hash
     payload = _prepare(fetched, mutated)
 
-    client._post_object(RECIPE_PATH.format(uid=uid), payload, "saving a recipe")
+    client._post_object(
+        RECIPE_PATH.format(uid=uid),
+        payload,
+        "saving a recipe",
+        image=photo.thumbnail if photo is not None else None,
+    )
     run.mark_landed(kind, uid)
     log_event("write", kind=kind, fields=sorted(payload))
     return str(payload[CHANGE_MARKER])

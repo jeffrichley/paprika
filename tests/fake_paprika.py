@@ -23,6 +23,7 @@ to damage her library.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import zlib
 from dataclasses import dataclass, field
@@ -174,6 +175,9 @@ class FakePaprika:
     grocery_writes: list[list[dict[str, Any]]] = field(default_factory=list)
     #: Every category array that was accepted, in order.
     category_writes: list[list[dict[str, Any]]] = field(default_factory=list)
+    #: The bytes of the last picture that arrived, so a test can check the
+    #: digest describes what was actually sent rather than what was claimed.
+    uploaded_photo: bytes | None = None
 
     def transport(self) -> httpx.MockTransport:
         """Return a transport that answers as Paprika would.
@@ -419,6 +423,37 @@ class FakePaprika:
         self.counters["categories"] = self.counters.get("categories", 0) + 1
         return _result(True)
 
+    def _photo_is_consistent(
+        self, uid: str, body: dict[str, Any], content: bytes
+    ) -> bool:
+        """Say whether the picture and what the object claims about it agree.
+
+        The digest has to describe the bytes that actually arrived. A fake that
+        accepted a hash of something else would let a real mismatch through
+        untested, which is the whole reason this fake reproduces misbehaviour
+        rather than an idealised API.
+
+        Args:
+            uid: Which recipe.
+            body: The object as sent.
+            content: The whole multipart body, photo part included.
+
+        Returns:
+            bool: False when the write should be refused.
+        """
+        picture = _extract_photo_part(content)
+        if picture is not None:
+            if body.get("photo_hash") != hashlib.sha256(picture).hexdigest().upper():
+                return False
+            if not body.get("photo"):
+                return False
+            self.uploaded_photo = picture
+            return True
+        # Naming a photo that was never uploaded leaves the recipe pointing at a
+        # file that does not exist.
+        named = body.get("photo")
+        return not named or named == self.recipes.get(uid, {}).get("photo")
+
     def _post_recipe(self, uid: str, request: httpx.Request) -> httpx.Response:
         """Store one recipe, or refuse it the way the real server refuses it.
 
@@ -450,6 +485,9 @@ class FakePaprika:
             return _refused()
         # The three photo fields must be null when absent, never "".
         if any(body.get(f) == "" for f in _PHOTO_FIELDS):
+            return _refused()
+
+        if not self._photo_is_consistent(uid, body, request.content):
             return _refused()
         stored_hash = body.get("hash")
         if not isinstance(stored_hash, str) or len(stored_hash) != 64:
@@ -507,6 +545,28 @@ def _post_meals_impl(fake: FakePaprika, request: httpx.Request) -> httpx.Respons
     fake.meals = list(by_uid.values())
     fake.counters["meals"] = fake.counters.get("meals", 0) + 1
     return _result(True)
+
+
+def _extract_photo_part(content: bytes) -> bytes | None:
+    """Pull the `photo_upload` part's bytes out of a multipart body.
+
+    Crude on purpose: the real server has a proper parser and we only need to
+    know whether a picture arrived and what it was, so the JPEG is found by its
+    own start and end markers rather than by walking boundaries.
+
+    Args:
+        content: The whole multipart body.
+
+    Returns:
+        bytes | None: The JPEG, or ``None`` when there is no photo part.
+    """
+    if b"photo_upload" not in content:
+        return None
+    start = content.find(b"\xff\xd8\xff")
+    if start == -1:
+        return None
+    end = content.rfind(b"\xff\xd9")
+    return content[start : end + 2] if end > start else None
 
 
 def _extract_gzipped_part(content: bytes) -> Any:

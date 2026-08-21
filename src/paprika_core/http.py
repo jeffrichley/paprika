@@ -363,7 +363,13 @@ class PaprikaClient:
         """
         return self._send("GET", path, attempted)
 
-    def _post_object(self, path: str, payload: Any, attempted: str) -> Any:
+    def _post_object(
+        self,
+        path: str,
+        payload: Any,
+        attempted: str,
+        image: bytes | None = None,
+    ) -> Any:
         """Write one object, gzipped, as the API insists.
 
         Every sync write is a ``multipart/form-data`` post whose ``data`` part is
@@ -376,14 +382,20 @@ class PaprikaClient:
             path: The path, trailing slash included.
             payload: The object or array to send.
             attempted: What is being done, for the log.
+            image: JPEG bytes to send alongside, when the object carries a
+                picture. Which objects legally may is the chokepoint's
+                business, not this module's.
 
         Returns:
             Any: The parsed result.
         """
         blob = gzip.compress(json.dumps(payload).encode("utf-8"))
-        return self._send(
-            "POST",
-            path,
-            attempted,
-            files={"data": ("file", blob, "application/octet-stream")},
-        )
+        parts: dict[str, tuple[str, bytes, str]] = {
+            "data": ("file", blob, "application/octet-stream")
+        }
+        if image is not None:
+            # A picture rides in the same request as the object it belongs to,
+            # which is the API's design and a good one: there is no window in
+            # which a photo has landed against a recipe that has not.
+            parts["photo_upload"] = ("photo.jpg", image, "image/jpeg")
+        return self._send("POST", path, attempted, files=parts)

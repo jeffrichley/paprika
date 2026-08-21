@@ -27,6 +27,7 @@ from paprika_core import (
     intake,
     pace,
     pantry,
+    photos,
     plan,
     profile,
     setup,
@@ -1379,6 +1380,54 @@ def write_recipe_set(
         found, categories = _resolve([handle])
         mutate = patch.as_mutation({"categories": categories})
         return _perform(attempted, [(uid, name, mutate) for uid, name in found], run)
+
+    _run(attempted, work)
+
+
+@write_recipe_app.command("photo")
+def write_recipe_photo(
+    handle: str,
+    file: Annotated[Path, typer.Option("--file", help="The picture to attach.")],
+) -> None:
+    """Give a recipe a picture it does not have.
+
+    A photograph rides in the same request as the recipe, so there is no moment
+    where one has landed without the other. What actually goes up is a square
+    thumbnail at the size Paprika's own clients send — the full-size gallery
+    picture is a different object whose shape is not documented anywhere, and
+    guessing it against an API that answers a bad write with a bare 500 is not
+    worth a prettier result.
+
+    Args:
+        handle: Which recipe.
+        file: The picture. Anything Pillow can open; a photograph of a page is
+            the case this exists for.
+    """
+    attempted = "adding a picture to a recipe"
+
+    def work() -> Envelope:
+        try:
+            image = file.read_bytes()
+        except OSError as problem:
+            raise PaprikaError(
+                Code.REFUSED_LOCALLY,
+                f"There's nothing readable at {file}.",
+                detail=str(problem),
+            ) from problem
+        prepared = photos.prepare(image)
+
+        found, _ = _resolve([handle])
+        uid, name = found[0]
+
+        client = sign_in()
+        try:
+            with undo.open_run() as run:
+                write.write(client, uid, lambda _: None, run=run, photo=prepared)
+                changed = run.changed()
+            _after_write(client, True)
+        finally:
+            client.close()
+        return succeeded(attempted, changed=changed, data={"pictured": [name]})
 
     _run(attempted, work)
 
