@@ -253,3 +253,25 @@ def test_importing_the_package_does_not_pay_for_an_image_library() -> None:
     )
 
     assert result.stdout.strip() == "False"
+
+
+def test_a_recipe_says_whether_it_has_a_picture(
+    signed_in: Path, seeded: FakePaprika, tmp_path: Path
+) -> None:
+    """Writing a photo without being able to read one back is a blind spot.
+
+    Found on a real library: `recipe get` exposed fourteen fields and none of
+    them photo-shaped, so the field most visibly lost by a whole-object replace
+    was the only one nothing could check.
+    """
+    runner.invoke(app, ["sync"])
+    handle = _handle_of("Roast Lemon Chicken")
+    before = json.loads(runner.invoke(app, ["recipe", "get", handle]).stdout)
+    assert before["data"]["recipes"][0]["photo"] is None
+
+    photo = tmp_path / "page.jpg"
+    photo.write_bytes(_an_image())
+    runner.invoke(app, ["write", "recipe", "photo", handle, "--file", str(photo)])
+
+    after = json.loads(runner.invoke(app, ["recipe", "get", handle]).stdout)
+    assert after["data"]["recipes"][0]["photo"]
