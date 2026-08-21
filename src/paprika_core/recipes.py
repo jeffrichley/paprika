@@ -77,6 +77,11 @@ SHOWN = (
     "rating",
     "source",
     "source_url",
+    # Whether there is a picture, so a skill can tell. Reported because this is
+    # now a field the plugin can *write*: shipping a way to set a photo without
+    # a way to see one leaves the one field a whole-object replace would lose
+    # most visibly as the only field nothing can check.
+    "photo",
 )
 
 
