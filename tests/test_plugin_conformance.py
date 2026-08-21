@@ -840,4 +840,7 @@ def test_the_judgement_says_what_a_literal_only_clean_result_means() -> None:
     )
 
     assert "literal_only" in body
-    assert "close to no information at all" in body
+    # Not "this result is weak" — the flag cannot know that. Pineapple and
+    # tomato were both literal_only on a real library and behaved nothing alike.
+    assert "whether the food hides inside other products" in body
+    assert "say which way you answered" in body

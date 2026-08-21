@@ -111,11 +111,19 @@ how a correct exclusion hides a second one.
 **A hit is a fact. Nothing found is not.** It can prove presence and never
 absence — it cannot know ketchup is tomatoes, which is exactly what *you* are
 for. `literal_only` in its answer names the allergies it had nothing but her own word
-for — and for those, **a clean result is close to no information at all**. It
-means the word does not appear. It does not mean the food does not: for
-`tomatoes` that leaves ketchup, passata, salsa, barbecue sauce, steak sauce and
-every jar of pasta sauce invisible. Measured on one real library, tomatoes
-matched 62 recipes of 492 and the reading found carriers the check could not see.
+for. It means **the word does not appear** — not that the food does not.
+
+How much that costs depends entirely on whether the food hides inside other
+products, and **that is your judgement, not a property of the flag**. Measured on
+one real library, both pineapple and tomato came back `literal_only` and they
+behaved nothing alike: pineapple found every one a careful reading found, because
+pineapple is nearly always called pineapple. Tomato found *fewer*, missing a cup
+of ketchup, because tomato travels as passata, salsa, barbecue sauce, steak sauce
+and every jar of pasta sauce.
+
+So the flag does not tell you the result is weak. It tells you to ask whether
+this particular food travels under other names — and to say which way you
+answered.
 
 So when you report on an allergy that is `literal_only`, **say that is what
 happened**. "Nothing found" and "nothing found, and this one only searched for
