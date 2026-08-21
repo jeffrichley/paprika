@@ -7,13 +7,13 @@
     "url": "https://github.com/jeffrichley"
   },
   "metadata": {
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "plugins": [
     {
       "name": "paprika",
       "description": "Plan a week of meals from your own Paprika recipes, build a shopping list with what you already have subtracted, get recipes in from links, photos and scanned pages, and tidy up a library that has grown messy. Unaffiliated with Hindsight Labs.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "Jeff Richley"
       },
