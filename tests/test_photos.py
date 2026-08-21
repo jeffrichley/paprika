@@ -275,3 +275,34 @@ def test_a_recipe_says_whether_it_has_a_picture(
 
     after = json.loads(runner.invoke(app, ["recipe", "get", handle]).stdout)
     assert after["data"]["recipes"][0]["photo"]
+
+
+def test_a_refused_photo_leaves_nothing_to_undo(
+    signed_in: Path, seeded: FakePaprika, tmp_path: Path
+) -> None:
+    """A refusal must not leave a Run behind.
+
+    Nothing moved, so there is nothing to put back — and an undo list carrying
+    an entry that would restore a recipe to the state it is already in is worse
+    than useless: the most recent entry is the one offered by name, so a phantom
+    run pushes the real one out of reach.
+
+    Suggested by the session that ran this live, on the grounds that it is the
+    kind of property that rots without a test. It was right.
+    """
+    photo = tmp_path / "page.jpg"
+    photo.write_bytes(_an_image())
+    runner.invoke(app, ["sync"])
+    handle = _handle_of("Roast Lemon Chicken")
+    runner.invoke(app, ["write", "recipe", "photo", handle, "--file", str(photo)])
+    before = json.loads(runner.invoke(app, ["undo", "list"]).stdout)["data"]["runs"]
+
+    second = tmp_path / "other.jpg"
+    second.write_bytes(_an_image(colour="purple"))
+    refused = runner.invoke(
+        app, ["write", "recipe", "photo", handle, "--file", str(second)]
+    )
+
+    assert refused.exit_code == 1
+    after = json.loads(runner.invoke(app, ["undo", "list"]).stdout)["data"]["runs"]
+    assert after == before
