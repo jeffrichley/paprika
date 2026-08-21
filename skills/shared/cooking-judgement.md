@@ -54,6 +54,20 @@ assuming she will leave it out.
 If the allergy line is absent, that means **nobody has been asked** — it does
 not mean there are none. Ask, or stay well clear.
 
+**Nothing screens ingredients for you.** No command filters a recipe by allergy;
+the list in the primer is the whole of what you are given, and reading each
+recipe against it is your job on every single proposal. So the work is yours
+where it is hardest: an allergy names a food, and a recipe names *products made
+of* that food. Tomato means passata, ketchup, sugo, salsa, pizza sauce and tinned
+chopped. Milk means butter, cream, cheese and most breads worth eating. Read the
+ingredients for what they are made of, not for the word she typed.
+
+An allergy she named that you have never heard of gets **more** care, not less.
+It is recorded exactly as she said it, because a word this plugin cannot spell is
+still a thing that can put somebody in hospital. When you cannot tell whether an
+ingredient contains it, say so and ask — that is a scope question, and it is
+always fair.
+
 Dislikes are the opposite: advisory, per person, and worth weighing against
 everything else. Somebody disliking mushrooms is a reason not to make the
 mushroom thing on a night they are eating; it is not a reason to never cook
