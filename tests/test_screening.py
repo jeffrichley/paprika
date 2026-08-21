@@ -134,3 +134,66 @@ def test_it_checks_what_the_household_avoids_when_asked_for_nothing(
 
     assert "lemon" in data["searched"]
     assert data["found"]
+
+
+def test_the_default_reaches_the_guests_allergies_too(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """Found live: on the household guests were built for, the default was blind.
+
+    `always_avoid` is family-only, correctly — that is #96, and it is what stops
+    a guest's allergy constraining a week she is not part of. But a *check* is
+    not a plan. It reports what a recipe names; who is eating decides what to do
+    about it. Defaulting to the family alone meant that on a household whose
+    only two allergies belong to guests, the bare command had nothing to look
+    for and refused.
+    """
+    uid = next(iter(seeded.recipes))
+    seeded.recipes[uid]["ingredients"] = "1 can pineapple\n1 lb pork"
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app, ["write", "profile", "set", "guests.jordan.allergies+=pineapple"]
+    )
+
+    data = _found(seeded)
+
+    assert "pineapple" in data["searched"]
+    assert data["found"]
+
+
+def test_every_hit_says_whose_allergy_it_is(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """Because a hit for a guest matters on their nights and not on others.
+
+    Reporting the allergy without the person would force a caller to re-derive
+    the #96 scoping from the Profile, and a rule re-derived at each call site is
+    a rule that will eventually be derived differently.
+    """
+    uid = next(iter(seeded.recipes))
+    seeded.recipes[uid]["ingredients"] = "1 can pineapple\n1 lb pork"
+    runner.invoke(app, ["sync"])
+    runner.invoke(
+        app, ["write", "profile", "set", "guests.jordan.allergies+=pineapple"]
+    )
+
+    hit = _found(seeded)["found"][0]
+
+    assert hit["whose"] == ["jordan"]
+    assert hit["when"] == "guest"
+
+
+def test_peanut_butter_is_not_a_dairy_hit(signed_in: Path, seeded: FakePaprika) -> None:
+    """Found live: 21 recipes matched `milk` only through peanut butter.
+
+    The cost of a false positive is not the false positive. It is that a check
+    which cries wolf teaches the person reading it to skim, and a skimmed
+    backstop is not a backstop.
+    """
+    uid = next(iter(seeded.recipes))
+    seeded.recipes[uid]["ingredients"] = "2 tbsp powdered peanut butter\n1 apple"
+    runner.invoke(app, ["sync"])
+
+    data = _found(seeded, "--for", "milk")
+
+    assert data["found"] == [], data["found"]

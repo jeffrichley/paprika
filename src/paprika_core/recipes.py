@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from paprika_core import allergens
 from paprika_core.mirror import Mirror, MirroredRecipe
 
 SEPARATOR = " | "
@@ -232,6 +233,13 @@ def lines_matching(mirror: Mirror, handle: str, terms: Sequence[str]) -> list[st
     for field in ("ingredients", "directions", "notes", "name", "source"):
         for line in str(body.get(field) or "").splitlines():
             lowered = line.casefold()
-            if any(term in lowered for term in terms) and line.strip():
+            hit = [term for term in terms if term in lowered]
+            # A line whose only matches are another food wearing the word is not
+            # a match at all: "powdered peanut butter" is not dairy.
+            if (
+                hit
+                and line.strip()
+                and not all(allergens.is_borrowed(term, lowered) for term in hit)
+            ):
                 found.append(line.strip())
     return found

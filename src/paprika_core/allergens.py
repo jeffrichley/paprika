@@ -154,3 +154,43 @@ def spellings_for(name: str) -> tuple[tuple[str, ...], bool]:
     if known:
         return known, False
     return (name.strip().casefold(),), True
+
+
+#: Words that make a match mean the opposite of what it looks like. "Peanut
+#: butter" is not butter; "coconut milk" is not milk. Found live: 21 recipes in
+#: one library matched `milk` through peanut butter alone.
+#:
+#: The cost of a false positive is not the false positive. It is that a check
+#: which cries wolf teaches whoever reads it to skim, and a skimmed backstop is
+#: not a backstop. So this list exists, and it is deliberately short — every
+#: entry here is a hole, and a long one would be a sieve.
+BORROWED: dict[str, tuple[str, ...]] = {
+    "butter": ("peanut", "apple", "cocoa", "shea", "almond", "cashew", "nut"),
+    "milk": ("coconut", "almond", "soy", "soya", "oat", "rice"),
+    "cream": ("coconut", "cream of tartar"),
+}
+
+
+def is_borrowed(term: str, line: str) -> bool:
+    """Say whether this line's match is another food wearing the word.
+
+    Args:
+        term: The word that matched.
+        line: The ingredient line it matched in.
+
+    Returns:
+        bool: True when every occurrence of the term in this line is borrowed —
+            one genuine mention is enough to keep the hit, because a recipe with
+            peanut butter *and* butter is a recipe with butter in it.
+    """
+    qualifiers = BORROWED.get(term)
+    if not qualifiers:
+        return False
+    lowered = line.casefold()
+    start = 0
+    while (found := lowered.find(term, start)) != -1:
+        before = lowered[:found]
+        if not any(before.rstrip().endswith(q) for q in qualifiers):
+            return False
+        start = found + len(term)
+    return True

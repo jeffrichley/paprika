@@ -100,10 +100,26 @@ It searches the name, ingredients, directions, **notes** and source for each
 allergy and the spellings we know for it, and quotes the lines it matched. It
 does not get tired, and it does not skip the notes field on the thirtieth recipe.
 
+**Say every reason a dish is out, not the first one.** A dish excluded for one
+person is still worth reporting for another, because the two are eating on
+different nights. Found live: a screen surfaced barbecue sauce on a pineapple
+dish and dropped it from the answer, since the dish was already excluded —
+leaving a tomato risk unmentioned on the night the tomato-allergic guest was
+there and the pineapple-allergic one was not. Stopping at the first reason is
+how a correct exclusion hides a second one.
+
 **A hit is a fact. Nothing found is not.** It can prove presence and never
 absence — it cannot know ketchup is tomatoes, which is exactly what *you* are
-for. `literal_only` in its answer names the allergies it had nothing but her own
-word for, and those are the ones where a clean result means least. Never report
+for. `literal_only` in its answer names the allergies it had nothing but her own word
+for — and for those, **a clean result is close to no information at all**. It
+means the word does not appear. It does not mean the food does not: for
+`tomatoes` that leaves ketchup, passata, salsa, barbecue sauce, steak sauce and
+every jar of pasta sauce invisible. Measured on one real library, tomatoes
+matched 62 recipes of 492 and the reading found carriers the check could not see.
+
+So when you report on an allergy that is `literal_only`, **say that is what
+happened**. "Nothing found" and "nothing found, and this one only searched for
+the word itself" are different sentences, and only one of them is honest. Never report
 a recipe as safe on the strength of this; report what it found, or say you read
 it and what you concluded.
 

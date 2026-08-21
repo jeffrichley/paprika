@@ -512,7 +512,10 @@ def recipe_check(
 
     def work() -> Envelope:
         read = profile.read()
-        wanted = against or list(read.always_avoid) or []
+        # Everyone's, not only the family's. A check reports what a recipe
+        # names; the caller knows which night and decides what it means.
+        everyone = read.everyone_s_allergies
+        wanted = against or list(everyone)
         if not wanted:
             raise PaprikaError(
                 Code.REFUSED_LOCALLY,
@@ -539,11 +542,21 @@ def recipe_check(
                     if not lines:
                         continue
                     body = mirror.recipe_body(handle) or {}
+                    whose = list(everyone.get(name, ()))
                     found.append(
                         {
                             "handle": handle,
                             "name": str(body.get("name") or ""),
                             "allergy": name,
+                            # Whose it is, and whether they are here every night
+                            # — so a caller reads the #96 scoping rather than
+                            # re-deriving it, and derives it differently.
+                            "whose": whose,
+                            "when": (
+                                "guest"
+                                if whose and all(w in read.guests for w in whose)
+                                else "every meal"
+                            ),
                             "lines": lines,
                         }
                     )
