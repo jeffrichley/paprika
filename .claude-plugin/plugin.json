@@ -1,6 +1,6 @@
 {
   "name": "paprika",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Manage a Paprika 3 recipe library and plan a week of meals from Claude Code. Unaffiliated with Hindsight Labs.",
   "author": {
     "name": "Jeff Richley"

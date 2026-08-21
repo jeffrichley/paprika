@@ -198,11 +198,24 @@ def _allergy_line(read: profile.Profile) -> list[str]:
     Returns:
         list[str]: One line, or none.
     """
-    if not read.readable or not read.allergies_answered:
+    if not read.readable:
         return []
-    if not read.allergies:
-        return ["Allergies: none in this household."]
-    return [f"Allergies: {', '.join(read.allergies)}."]
+    lines = []
+    if read.allergies_answered or read.always_avoid:
+        if read.always_avoid:
+            lines.append(f"Allergies, every meal: {', '.join(read.always_avoid)}.")
+        else:
+            lines.append("Allergies: none in this household.")
+    if read.guests_to_ask_about:
+        # Named, but not folded into the line above: a guest's allergy binds the
+        # meals they are at and nothing else, and a week has to ask whether they
+        # are coming rather than assume it either way.
+        who = ", ".join(
+            f"{name} ({', '.join(read.guests[name].allergies)})"
+            for name in read.guests_to_ask_about
+        )
+        lines.append(f"Guests who sometimes eat here: {who}.")
+    return lines
 
 
 def facts(today: dt.date | None = None) -> list[str]:

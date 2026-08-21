@@ -42,7 +42,7 @@ LEANING = "_leaning"
 DIRECTIONS = ("higher", "lower", "steady")
 
 #: Free-text list fields a person carries.
-PERSON_LISTS = ("dislikes", "loves")
+PERSON_LISTS = ("dislikes", "loves", "allergies")
 
 HEADER = """\
 # paprika — your household
@@ -80,13 +80,23 @@ class Person:
 
     Attributes:
         name: What she calls them.
-        dislikes: Free text, in her words.
+        dislikes: Free text, in her words. Advisory, and worth weighing against
+            everything else.
         loves: Free text, in her words.
+        allergies: Hard constraints. On any meal this person eats, they bind
+            the **whole** meal — the cook only gets one pot, and nobody is
+            handed a separate dinner.
+        usually: When a guest normally comes, in her words: ``Sundays``. Held so
+            the question can be *"Monica on Sunday as usual?"* rather than an
+            open one. **Recorded so it can be asked about, never so it can be
+            assumed.** Empty for family, who are here anyway.
     """
 
     name: str
     dislikes: tuple[str, ...] = ()
     loves: tuple[str, ...] = ()
+    allergies: tuple[str, ...] = ()
+    usually: str = ""
 
 
 @dataclass(frozen=True)
@@ -99,7 +109,12 @@ class Profile:
         allergies_answered: Whether anybody has ever been asked. Held apart from
             an empty list on purpose.
         allergies: Canonical allergy names the filter can act on.
-        people: Everyone cooked for, by name.
+        people: The family, by name. They live here, so their allergies bind
+            every meal and no attendance needs modelling for them.
+        guests: People who come sometimes, by name, each carrying their own
+            constraints. Applied only to meals they are actually at — which is
+            what stops one guest's allergy constraining a week she is not part
+            of.
         household_size: How many people, when stated.
         pantry_stale_days: How old what-she-has may be before a list explains
             itself. Hers to tune, because a number that lives only in a prompt
@@ -113,11 +128,41 @@ class Profile:
     allergies_answered: bool = False
     allergies: tuple[str, ...] = ()
     people: dict[str, Person] = field(default_factory=dict)
+    guests: dict[str, Person] = field(default_factory=dict)
     household_size: int | None = None
     pantry_stale_days: float | None = None
     fast_nights: tuple[str, ...] = ()
     away: tuple[str, ...] = ()
     targets: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def always_avoid(self) -> tuple[str, ...]:
+        """Return what binds every meal, whoever is at the table.
+
+        The household's own allergies plus every family member's. Family live
+        here, so there is nothing to ask and nothing to model — their
+        constraints simply hold.
+
+        Returns:
+            tuple[str, ...]: Allergy names, deduplicated, in a stable order.
+        """
+        found = list(self.allergies)
+        for person in self.people.values():
+            found += [name for name in person.allergies if name not in found]
+        return tuple(found)
+
+    @property
+    def guests_to_ask_about(self) -> tuple[str, ...]:
+        """Return the guests whose presence a week has to establish.
+
+        Only those carrying an **allergy**. A guest with dislikes alone is worth
+        knowing about and is not worth interrupting for: getting it wrong costs
+        somebody a meal they did not love, not a hospital visit.
+
+        Returns:
+            tuple[str, ...]: Guest names, in the order stored.
+        """
+        return tuple(name for name, guest in self.guests.items() if guest.allergies)
 
 
 def path() -> "store.Path":
@@ -200,6 +245,21 @@ def read() -> Profile:
                 name=str(name),
                 dislikes=_strings(entry.get("dislikes")),
                 loves=_strings(entry.get("loves")),
+                allergies=_strings(entry.get("allergies")),
+            )
+
+    guests: dict[str, Person] = {}
+    stored_guests = document.get("guests")
+    if isinstance(stored_guests, dict):
+        for name, entry in stored_guests.items():
+            if not isinstance(entry, dict):
+                continue
+            guests[str(name)] = Person(
+                name=str(name),
+                dislikes=_strings(entry.get("dislikes")),
+                loves=_strings(entry.get("loves")),
+                allergies=_strings(entry.get("allergies")),
+                usually=str(entry.get("usually") or ""),
             )
 
     rhythm = document.get("rhythm")
@@ -218,6 +278,7 @@ def read() -> Profile:
         allergies_answered=isinstance(allergies_raw, list),
         allergies=_strings(allergies_raw),
         people=people,
+        guests=guests,
         household_size=int(size) if isinstance(size, int) else None,
         pantry_stale_days=(
             float(stale)
@@ -303,7 +364,7 @@ def apply(expression: str) -> None:
     parts = where.split(".")
     if parts[0] == "allergies":
         _apply_allergy(document, parts, operator, value)
-    elif parts[0] == "people":
+    elif parts[0] in ("people", "guests"):
         _apply_person(document, parts, operator, value)
     elif parts[0] == "rhythm":
         _apply_rhythm(document, parts, operator, value)
@@ -373,20 +434,84 @@ def _apply_allergy(
     document["allergies"] = current
 
 
-def _apply_person(
-    document: tomlkit.TOMLDocument, parts: list[str], operator: str, value: str
-) -> None:
-    """Add or remove one of a person's dislikes or loves.
+def _entry_in(
+    document: tomlkit.TOMLDocument, table_name: str, who: str
+) -> MutableMapping[str, Any]:
+    """Return one person's table, making it and its parent when absent.
 
     Args:
         document: The Profile document.
-        parts: The split path, ``people.<name>.<list>``.
-        operator: ``+=`` or ``-=``.
+        table_name: ``people`` or ``guests``.
+        who: Their name, as she says it.
+
+    Returns:
+        MutableMapping[str, Any]: The table to write into.
+    """
+    table = document.get(table_name)
+    if not isinstance(table, dict):
+        table = tomlkit.table(is_super_table=True)
+        document[table_name] = table
+    entry = table.get(who)
+    if not isinstance(entry, dict):
+        entry = tomlkit.table()
+        table[who] = entry
+    return entry
+
+
+def _apply_usually(
+    document: tomlkit.TOMLDocument, parts: list[str], operator: str, value: str
+) -> None:
+    """Record when a guest normally comes.
+
+    Held so a week can ask *"Monica on Sunday as usual?"* rather than an open
+    question. **Never so it can be assumed** — she says who is coming.
+
+    Args:
+        document: The Profile document.
+        parts: ``guests.<name>.usually``.
+        operator: Must be ``=``.
+        value: In her words: ``Sundays``.
+
+    Raises:
+        PaprikaError: When added to rather than set.
+    """
+    if operator != "=":
+        raise _refuse(
+            "When somebody usually comes is one answer, so it's set rather than "
+            "added to.",
+            "list operator on guests.usually",
+        )
+    _entry_in(document, "guests", parts[1])["usually"] = value
+
+
+def _apply_person(
+    document: tomlkit.TOMLDocument, parts: list[str], operator: str, value: str
+) -> None:
+    """Add or remove one of a person's dislikes, loves or allergies.
+
+    Serves ``people`` and ``guests`` alike: a guest is the same shape as a
+    family member and differs only in when their constraints apply. Family live
+    here so theirs always do; a guest's bind the meals they are at. Keeping one
+    writer is what stops the two drifting into different rules.
+
+    Args:
+        document: The Profile document.
+        parts: The split path, ``people.<name>.<list>`` or ``guests.<name>.…``.
+            For a guest, ``guests.<name>.usually=Sundays`` is also accepted.
+        operator: ``+=``, ``-=``, or ``=`` for ``usually`` alone.
         value: Free text, in her words.
 
     Raises:
         PaprikaError: On a path that names no list, or a whole-value write.
     """
+    table_name = parts[0]
+
+    # When a guest normally comes is a single fact, not a list, and it is the
+    # one thing here that is set outright.
+    if table_name == "guests" and len(parts) == 3 and parts[2] == "usually":
+        _apply_usually(document, parts, operator, value)
+        return
+
     if len(parts) != 3 or parts[2] not in PERSON_LISTS:
         raise _refuse(
             "That isn't something kept about a person.",
@@ -398,14 +523,15 @@ def _apply_person(
             "whole-value write to a person list",
         )
 
-    people = document.get("people")
-    if not isinstance(people, dict):
-        people = tomlkit.table(is_super_table=True)
-        document["people"] = people
-    person = people.get(parts[1])
-    if not isinstance(person, dict):
-        person = tomlkit.table()
-        people[parts[1]] = person
+    if parts[2] == "allergies":
+        # Her word, tidied onto one name where we know it — the same treatment
+        # a household allergy gets, so `dairy` and `milk` do not read as two.
+        canonical = allergens.normalise(value)
+        if canonical is None:
+            raise _refuse("An allergy needs a name.", "blank allergen")
+        value = canonical
+
+    person = _entry_in(document, table_name, parts[1])
 
     current = _list_at(person, parts[2])
     if operator == "+=" and value not in current:

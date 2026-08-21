@@ -36,6 +36,15 @@ Three reads, and they are cheap:
 Pull a handful of bodies with `paprika recipe get` when a night's choice turns
 on ingredients rather than titles.
 
+**Ask who is joining before you draft anything.** `guests_to_ask_about` names
+the people whose presence changes what is safe. Ask once, for the week, using
+what the Profile already knows so it is a checkable question rather than an open
+one — *"Monica on Sunday as usual, or is it a different night?"* Their allergies
+then bind those nights and no others.
+
+If she does not know yet, **apply their allergies to the whole week**. A week she
+can loosen later is better than one that has to be redrawn.
+
 **If the allergy line is absent, nobody has been asked.** That is not the same
 as none. Ask before drafting anything that could go wrong.
 

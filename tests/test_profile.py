@@ -49,15 +49,26 @@ def test_being_told_there_are_none_is_different_from_never_asking(
     assert read.allergies == ()
 
 
-def test_allergies_are_household_wide(paprika_home: Path) -> None:
-    """The cook only gets one pot, so an allergy is not somebody's preference."""
-    profile.apply("allergies+=peanuts")
+def test_an_allergy_binds_the_whole_meal_rather_than_one_plate(
+    paprika_home: Path,
+) -> None:
+    """ "The cook only gets one pot" — kept, and correctly scoped by #96.
+
+    It used to be read as *always, everyone*, and the second half of this test
+    asserted there was no per-person place to put an allergy at all. That is
+    what made a guest's allergy constrain six nights she was not there for.
+
+    One pot is an argument about a **meal**. Whoever is eating, their allergies
+    bind everything on the table that night, because nobody is handed a separate
+    dinner. It says nothing about the nights they are absent.
+    """
+    profile.apply("people.sam.allergies+=peanuts")
     profile.apply("allergies+=shellfish")
 
-    assert set(profile.read().allergies) == {"peanuts", "shellfish"}
-    # And there is no per-person place to put one.
-    with pytest.raises(PaprikaError):
-        profile.apply("people.sam.allergies+=peanuts")
+    read = profile.read()
+    # Sam lives here, so Sam's allergy is in force at every meal.
+    assert "peanuts" in read.always_avoid
+    assert "shellfish" in read.always_avoid
 
 
 def test_an_allergy_is_recorded_in_a_form_the_filter_can_act_on(
@@ -377,7 +388,97 @@ def test_what_she_typed_is_kept_when_we_do_not_know_it(paprika_home: Path) -> No
     assert profile.read().allergies == ("nightshades",)
 
 
-def test_an_allergy_is_still_never_per_person(paprika_home: Path) -> None:
-    """Unchanged by all of this: the cook only gets one pot."""
-    with pytest.raises(PaprikaError):
-        profile.apply("people.monica.allergies+=tomatoes")
+def test_a_guest_s_allergy_does_not_reach_the_nights_they_miss(
+    paprika_home: Path,
+) -> None:
+    """Written this morning asserting the opposite, and the opposite was wrong.
+
+    It read *"Unchanged by all of this: the cook only gets one pot"* and pinned
+    the refusal of a per-person allergy — from the same misreading that made
+    Monica's tomatoes a seven-night constraint. See #96.
+    """
+    profile.apply("guests.monica.allergies+=tomatoes")
+
+    read = profile.read()
+    assert read.guests["monica"].allergies == ("tomatoes",)
+    assert "tomatoes" not in read.always_avoid
+    # But her presence is a question a week has to settle, never assume.
+    assert read.guests_to_ask_about == ("monica",)
+
+
+# --- Family always; guests on the nights they come ---------------------------
+#
+# #96. Monica does not live here, comes once a week, and is allergic to
+# tomatoes. Recording that household-wide constrained six nights that did not
+# need it; the alternative was leaving a real allergy unrecorded. "One pot" is a
+# per-meal argument and had been implemented as a permanent one.
+
+
+def test_a_family_member_carries_their_own_allergy(paprika_home: Path) -> None:
+    """Whose allergy it is, is worth knowing. It binds every night regardless."""
+    profile.apply("people.cynthia.allergies+=shellfish")
+
+    assert profile.read().people["cynthia"].allergies == ("shellfish",)
+
+
+def test_the_always_on_filter_is_the_family_s_allergies_together(
+    paprika_home: Path,
+) -> None:
+    """They live here, so no attendance needs modelling for them at all."""
+    profile.apply("people.cynthia.allergies+=shellfish")
+    profile.apply("people.brandon.allergies+=peanuts")
+    profile.apply("allergies+=gluten")
+
+    assert set(profile.read().always_avoid) == {"shellfish", "peanuts", "gluten"}
+
+
+def test_a_guest_is_recorded_without_binding_every_night(paprika_home: Path) -> None:
+    """The whole point. Sunday is tomato-free; Tuesday is nobody's business."""
+    profile.apply("guests.monica.allergies+=tomatoes")
+
+    read = profile.read()
+    assert read.guests["monica"].allergies == ("tomatoes",)
+    assert "tomatoes" not in read.always_avoid
+
+
+def test_a_guest_carries_dislikes_too(paprika_home: Path) -> None:
+    """Same shape as family, advisory in the same way."""
+    profile.apply("guests.jacob.dislikes+=olives")
+
+    assert profile.read().guests["jacob"].dislikes == ("olives",)
+
+
+def test_when_a_guest_usually_comes_is_worth_recording(paprika_home: Path) -> None:
+    """So the question can be `Monica on Sunday as usual?` rather than an open one.
+
+    Recorded so it can be *asked about*, never so it can be assumed.
+    """
+    profile.apply("guests.monica.usually=Sundays")
+
+    assert profile.read().guests["monica"].usually == "Sundays"
+
+
+def test_a_household_allergy_still_means_everyone_always(paprika_home: Path) -> None:
+    """Profiles already on disk keep meaning exactly what they meant."""
+    profile.apply("allergies+=tomatoes")
+
+    assert "tomatoes" in profile.read().always_avoid
+
+
+def test_a_guest_with_an_allergy_is_a_question_the_week_has_to_ask(
+    paprika_home: Path,
+) -> None:
+    """Silence in either direction is the failure. Neither apply nor ignore.
+
+    Applying every guest's constraints collapses the concept back into the
+    always-on filter. Ignoring them plans tomatoes for the Sunday Monica always
+    comes to. So a week asks — once, before drafting — and this is the flag it
+    asks on.
+    """
+    assert not profile.read().guests_to_ask_about
+
+    profile.apply("guests.monica.allergies+=tomatoes")
+    profile.apply("guests.jacob.dislikes+=olives")
+
+    # Only the one whose constraint could hurt somebody forces the question.
+    assert profile.read().guests_to_ask_about == ("monica",)
