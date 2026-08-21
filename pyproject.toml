@@ -1,6 +1,6 @@
 [project]
 name = "paprika-plugin"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Claude Code plugin for managing a Paprika 3 recipe library and planning a week of meals."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -50,13 +50,17 @@ dev = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
+version = "0.2.0"
 version_files = [
     "pyproject.toml:^version",
     ".claude-plugin/plugin.json:version",
     # The primer compares this against the plugin's manifest, so it has to move
     # with them or the drift check drifts.
     "src/paprika_core/__init__.py:^__version__",
+    # Both of the catalogue's copies. Claude Code installs the plugin into a
+    # directory named by this version and will not replace one it already has,
+    # so a fix that does not move this number is a fix nobody receives.
+    ".claude-plugin/marketplace.json:\"version\"",
 ]
 tag_format = "v$version"
 

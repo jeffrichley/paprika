@@ -623,15 +623,20 @@ def test_the_readme_no_longer_claims_the_work_is_unfinished() -> None:
         assert stale not in readme, stale
 
 
-def test_the_two_halves_agree_on_what_version_this_is() -> None:
-    """Three files carry the version, and the primer compares two of them.
+def _versions() -> dict[str, str]:
+    """Return every version this repository writes down, by where it lives.
 
-    A drift check that has drifted is worse than none: it would cry mismatch on
-    a machine where both halves were updated together. Commitizen moves all
-    three on release; this is what fails if one is ever moved by hand.
+    Returns:
+        dict[str, str]: Location to version. Five of them, and every one has to
+            move together — a release that moves some is worse than one that
+            moves none, because the drift check would then cry wolf on a machine
+            where both halves were updated correctly.
     """
     manifest = json.loads(
         (REPO / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    catalogue = json.loads(
+        (REPO / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
     )
     package = re.search(
         r'^__version__ = "([^"]+)"',
@@ -643,19 +648,57 @@ def test_the_two_halves_agree_on_what_version_this_is() -> None:
         (REPO / "pyproject.toml").read_text(encoding="utf-8"),
         re.MULTILINE,
     )
-
     assert package is not None and project is not None
-    assert manifest["version"] == package.group(1) == project.group(1)
+    return {
+        "plugin.json": str(manifest["version"]),
+        "marketplace.json metadata": str(catalogue["metadata"]["version"]),
+        "marketplace.json plugin entry": str(catalogue["plugins"][0]["version"]),
+        "paprika_core.__version__": package.group(1),
+        "pyproject.toml": project.group(1),
+    }
+
+
+def test_every_version_this_repository_writes_down_agrees() -> None:
+    """Five carriers, one number.
+
+    The primer compares the plugin's manifest against the installed command and
+    tells her when they disagree. A drift check that has itself drifted is worse
+    than none: it would report a mismatch on a machine where both halves were
+    updated together, and be ignored from then on.
+    """
+    found = _versions()
+
+    assert len(set(found.values())) == 1, found
 
 
 def test_the_release_moves_every_file_that_carries_a_version() -> None:
-    """Otherwise the agreement above holds only until the next release."""
+    """Otherwise the agreement above holds only until the next release.
+
+    `marketplace.json` was missed for exactly this reason: nothing failed when
+    it was added, because nothing had been released yet.
+    """
     pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
-    bumped = re.search(r"version_files = \[(.*?)\]", pyproject, re.DOTALL)
+    bumped = re.search(r"version_files = \[(.*?)\n\]", pyproject, re.DOTALL)
 
     assert bumped is not None
-    for carrier in ("pyproject.toml", "plugin.json", "paprika_core/__init__.py"):
+    for carrier in (
+        "pyproject.toml",
+        "plugin.json",
+        "paprika_core/__init__.py",
+        "marketplace.json",
+    ):
         assert carrier in bumped.group(1)
+
+
+def test_the_version_has_moved_since_the_first_one() -> None:
+    """Claude Code will not replace a plugin directory it already has.
+
+    It installs into `.../paprika/<version>/`, so a fix shipped without moving
+    this number is a fix nobody receives — `/plugin update` looks, sees the
+    version it already holds, and does nothing. Found the hard way: four merged
+    changes, none of them reachable by anyone who had installed it.
+    """
+    assert _versions()["plugin.json"] != "0.1.0"
 
 
 def test_the_hook_needs_nothing_but_the_command() -> None:

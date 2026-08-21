@@ -193,6 +193,23 @@ The reasoning is recorded in full in
 
 ## For developers
 
+### Releasing
+
+**Every change that ships has to move the version.** Claude Code installs the
+plugin into a directory named by it and will not replace one it already holds,
+so a fix that leaves the number alone is a fix nobody receives — `/plugin update`
+looks, sees what it has, and does nothing. No error appears anywhere.
+
+```bash
+uv run cz bump --yes
+```
+
+That moves all five places a version is written — `pyproject.toml`,
+`plugin.json`, both of `marketplace.json`'s copies, and `paprika_core.__version__`
+— and tags the release. A conformance test fails if they ever disagree, and CI
+fails a pull request that touches `src/`, `skills/`, `agents/` or `hooks/`
+without moving it.
+
 Requires [`uv`](https://docs.astral.sh/uv/) and [`just`](https://just.systems/).
 
 ```bash
