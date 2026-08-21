@@ -727,6 +727,9 @@ def test_the_readme_says_the_two_halves_are_updated_together() -> None:
     assert "uv tool upgrade" in updating
     assert "/plugin update" in updating
     assert "out of step" in updating
+    # And it says what to do when upgrade reports nothing to do and is wrong.
+    assert "Nothing to upgrade" in updating
+    assert "uv tool install --force" in updating
 
 
 def test_the_manifest_does_not_name_the_standard_hooks_file() -> None:

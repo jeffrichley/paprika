@@ -88,6 +88,18 @@ uv tool upgrade paprika-plugin
 
 and `/plugin update paprika` in Claude Code. Then start a new session.
 
+**If it says `Nothing to upgrade` and you know there is a new version**, ask for
+it by name instead:
+
+```bash
+uv tool install --force git+https://github.com/jeffrichley/paprika
+```
+
+That re-resolves the branch rather than upgrading within what was already
+resolved, and it always works. `upgrade` usually works too — but it has answered
+`Nothing to upgrade` with four releases sitting on the branch, and the message
+is indistinguishable from being up to date.
+
 They're two separate installs — the command, and the plugin Claude Code loads —
 so updating one and not the other leaves them **out of step**. It says so when
 that happens, rather than letting you find out through something failing oddly.
