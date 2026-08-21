@@ -83,10 +83,16 @@ Then start a new session, so it picks the plugin up.
 ### Updating
 
 ```bash
-uv tool upgrade paprika-plugin
+uv tool install --force git+https://github.com/jeffrichley/paprika
 ```
 
 and `/plugin update paprika` in Claude Code. Then start a new session.
+
+`uv tool upgrade paprika-plugin` looks like the right command and is not. A git
+install pins the commit it resolved, so `upgrade` upgrades that version's
+*dependencies* and answers **"Nothing to upgrade"** however far the repository
+has moved — it is not wrong, it is answering a different question. Re-installing
+is what re-resolves the branch.
 
 They're two separate installs — the command, and the plugin Claude Code loads —
 so updating one and not the other leaves them **out of step**. It says so when

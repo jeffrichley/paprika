@@ -724,9 +724,11 @@ def test_the_readme_says_the_two_halves_are_updated_together() -> None:
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     updating = readme.split("### Updating", 1)[1].split("##", 1)[0]
 
-    assert "uv tool upgrade" in updating
+    assert "uv tool install --force" in updating
     assert "/plugin update" in updating
     assert "out of step" in updating
+    # And it warns off the command that looks right and silently does nothing.
+    assert "Nothing to upgrade" in updating
 
 
 def test_the_manifest_does_not_name_the_standard_hooks_file() -> None:
