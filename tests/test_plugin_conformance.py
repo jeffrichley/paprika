@@ -844,3 +844,17 @@ def test_the_judgement_says_what_a_literal_only_clean_result_means() -> None:
     # tomato were both literal_only on a real library and behaved nothing alike.
     assert "whether the food hides inside other products" in body
     assert "say which way you answered" in body
+
+
+def test_the_judgement_offers_to_learn_a_carrier_it_missed() -> None:
+    """Otherwise the backstop stands still while the reading keeps finding things."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "carriers.tomatoes+=ketchup" in body
+    assert "Offer, never assume" in body
+    # And the cost is disclosed at the point of offering, not discovered later.
+    assert "including the ones made with a brand that has no tomato in it" in body
