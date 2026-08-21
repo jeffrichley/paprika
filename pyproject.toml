@@ -57,6 +57,10 @@ version_files = [
     # The primer compares this against the plugin's manifest, so it has to move
     # with them or the drift check drifts.
     "src/paprika_core/__init__.py:^__version__",
+    # Both of the catalogue's copies. Claude Code installs the plugin into a
+    # directory named by this version and will not replace one it already has,
+    # so a fix that does not move this number is a fix nobody receives.
+    ".claude-plugin/marketplace.json:\"version\"",
 ]
 tag_format = "v$version"
 
