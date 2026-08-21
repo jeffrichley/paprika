@@ -82,7 +82,7 @@ jobs:
         run: |
           base="origin/${{ github.base_ref }}"
           changed=$(git diff --name-only "$base"...HEAD)
-          ships=$(echo "$changed" | grep -E '^(src/|skills/|agents/|hooks/)' || true)
+          ships=$(echo "$changed" | grep -E '^(src/|skills/|agents/|hooks/|\.claude-plugin/)' || true)
           if [ -z "$ships" ]; then
             echo "Nothing that ships changed. No bump needed."
             exit 0
