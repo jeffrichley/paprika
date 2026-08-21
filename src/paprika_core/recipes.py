@@ -11,6 +11,7 @@ that pulls a handful of recipes, not one that widens this line.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from paprika_core.mirror import Mirror, MirroredRecipe
@@ -208,3 +209,29 @@ def differences(mirror: Mirror, handles: list[str]) -> dict[str, Any]:
         "identical": not differing,
         "missing": [handle for handle in handles if bodies.get(handle) is None],
     }
+
+
+def lines_matching(mirror: Mirror, handle: str, terms: Sequence[str]) -> list[str]:
+    """Return the recipe's own lines that contain any of the terms.
+
+    Quoted rather than summarised so a skill can show her the evidence instead
+    of asserting the conclusion — "the last line says barbecue sauce" is a thing
+    she can check, and "this contains tomato" is a thing she has to take on
+    trust.
+
+    Args:
+        mirror: The Mirror to read.
+        handle: Which recipe.
+        terms: Lowercased words to look for.
+
+    Returns:
+        list[str]: The matching lines, in the order they appear.
+    """
+    body = mirror.recipe_body(handle) or {}
+    found: list[str] = []
+    for field in ("ingredients", "directions", "notes", "name", "source"):
+        for line in str(body.get(field) or "").splitlines():
+            lowered = line.casefold()
+            if any(term in lowered for term in terms) and line.strip():
+                found.append(line.strip())
+    return found

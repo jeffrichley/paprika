@@ -764,8 +764,15 @@ def test_the_shared_judgement_says_no_command_screens_for_allergies() -> None:
         encoding="utf-8"
     )
 
-    assert "Nothing screens ingredients for you" in body
-    # And it names the hard part: an allergy is a food, a recipe lists products.
+    # The backstop exists and the skill has to point at it. This assertion
+    # replaces one that required the sentence "Nothing screens ingredients for
+    # you" — which was written before anyone noticed `recipe check`'s ancestor
+    # already searched the notes field, and which told a session not to look for
+    # the tool that would have caught the miss.
+    assert "paprika recipe check" in body
+    assert "A hit is a fact. Nothing found is not." in body
+    # And it still names the hard part, which is the half that cannot be
+    # automated: an allergy is a food, a recipe lists products made of it.
     assert "passata" in body and "ketchup" in body
 
 

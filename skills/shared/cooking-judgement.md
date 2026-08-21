@@ -81,13 +81,31 @@ Which meals a guest is at is **hers to say**:
 If the allergy line is absent, that means **nobody has been asked** — it does
 not mean there are none. Ask, or stay well clear.
 
-**Nothing screens ingredients for you.** No command filters a recipe by allergy;
-the list in the primer is the whole of what you are given, and reading each
-recipe against it is your job on every single proposal. So the work is yours
-where it is hardest: an allergy names a food, and a recipe names *products made
-of* that food. Tomato means passata, ketchup, sugo, salsa, pizza sauce and tinned
-chopped. Milk means butter, cream, cheese and most breads worth eating. Read the
-ingredients for what they are made of, not for the word she typed.
+**Reading the recipes is your job, and `paprika recipe check` is your backstop.**
+Run both, in that order.
+
+Yours is the half that matters and cannot be automated: an allergy names a food,
+and a recipe names *products made of* that food. Tomato means passata, ketchup,
+sugo, salsa, pizza sauce and tinned chopped. Milk means butter, cream, cheese and
+most breads worth eating. Read the ingredients for what they are made of, not for
+the word she typed.
+
+Then run the check anyway, over what you are proposing:
+
+```bash
+paprika recipe check <handle> <handle> …
+```
+
+It searches the name, ingredients, directions, **notes** and source for each
+allergy and the spellings we know for it, and quotes the lines it matched. It
+does not get tired, and it does not skip the notes field on the thirtieth recipe.
+
+**A hit is a fact. Nothing found is not.** It can prove presence and never
+absence — it cannot know ketchup is tomatoes, which is exactly what *you* are
+for. `literal_only` in its answer names the allergies it had nothing but her own
+word for, and those are the ones where a clean result means least. Never report
+a recipe as safe on the strength of this; report what it found, or say you read
+it and what you concluded.
 
 An allergy she named that you have never heard of gets **more** care, not less.
 It is recorded exactly as she said it, because a word this plugin cannot spell is

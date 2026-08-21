@@ -45,6 +45,12 @@ then bind those nights and no others.
 If she does not know yet, **apply their allergies to the whole week**. A week she
 can loosen later is better than one that has to be redrawn.
 
+**Before you show her the week, run `paprika recipe check` over every recipe in
+it** — with `--for` naming the guests' allergies on the nights they are at, as
+well as what the household always avoids. After your own reading, never instead
+of it. A live test had two careful readings of the same recipes both miss
+something, and the one that mattered was named in a notes field.
+
 **If the allergy line is absent, nobody has been asked.** That is not the same
 as none. Ask before drafting anything that could go wrong.
 

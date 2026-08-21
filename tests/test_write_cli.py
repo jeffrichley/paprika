@@ -309,7 +309,15 @@ def test_every_mutating_command_sits_under_one_prefix() -> None:
     # Reading what could be put back changes nothing, so it stays outside.
     assert _commands_at("undo") == {"list"}
     # And the reads are reads.
-    assert _commands_at("recipe") == {"index", "get", "search", "compare"}
+    assert _commands_at("recipe") == {
+        "index",
+        "get",
+        "search",
+        "compare",
+        # Looking for an allergen changes nothing, so it stays outside the
+        # prefix with the other reads.
+        "check",
+    }
 
 
 def test_the_write_prefix_covers_every_command_that_can_change_her_library(
