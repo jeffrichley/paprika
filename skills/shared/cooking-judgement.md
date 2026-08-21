@@ -125,6 +125,33 @@ So the flag does not tell you the result is weak. It tells you to ask whether
 this particular food travels under other names — and to say which way you
 answered.
 
+**When you find a carrier the check could not, offer to record it.**
+
+```bash
+paprika write profile set "carriers.tomatoes+=ketchup"
+```
+
+That is what makes the backstop compound instead of standing still. Every time
+your reading beats it, it can be taught the thing that beat it, and the person
+who benefits is her next month when nobody remembers this conversation. Ranch
+dressing often contains tomato; no list shipped with this plugin will ever know
+that, because it depends which ranch dressing she buys.
+
+**And when she tells you one unprompted, take it.** *"Ranch dressing has tomato
+in it."* *"Most stock cubes have gluten."* That is her reading a label you will
+never see, and it is worth more than anything shipped here. Record it the same
+way, confirm what you wrote, and say what it will now catch.
+
+Both directions matter and they fail differently. Waiting to be asked loses what
+she already knows; recording without asking puts words in her Profile she did
+not say.
+
+**Offer, never assume.** Her Profile holds things she said. And say the cost
+plainly when you offer: a carrier is a word like any other, so recording `ranch`
+will flag every ranch recipe, including the ones made with a brand that has no
+tomato in it. That is the right direction to be wrong in, and she should hear it
+from you rather than discover it.
+
 So when you report on an allergy that is `literal_only`, **say that is what
 happened**. "Nothing found" and "nothing found, and this one only searched for
 the word itself" are different sentences, and only one of them is honest. Never report

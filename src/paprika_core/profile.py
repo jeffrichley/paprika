@@ -127,6 +127,11 @@ class Profile:
         fast_nights: Nights that have to be quick.
         away: Who is away this week.
         targets: Directional leanings, never numbers.
+            carriers: What she knows carries an allergen, by allergy — ketchup
+            for tomatoes, and whichever ranch dressing she buys if it has tomato
+            in it. **Hers because they are hers**: carriers are brand- and
+            region-dependent, so a shipped list would be wrong for somebody, and
+            wrong in the direction of a clean sheet.
     """
 
     readable: bool = True
@@ -139,6 +144,7 @@ class Profile:
     fast_nights: tuple[str, ...] = ()
     away: tuple[str, ...] = ()
     targets: dict[str, str] = field(default_factory=dict)
+    carriers: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def always_avoid(self) -> tuple[str, ...]:
@@ -314,6 +320,13 @@ def read() -> Profile:
     rhythm = rhythm if isinstance(rhythm, dict) else {}
     size = rhythm.get("household_size")
 
+    carriers_raw = document.get("carriers")
+    carriers = {
+        str(name): _strings(value)
+        for name, value in (carriers_raw or {}).items()
+        if isinstance(carriers_raw, dict)
+    }
+
     targets_raw = document.get("targets")
     targets = {
         str(key): str(value)
@@ -336,6 +349,7 @@ def read() -> Profile:
         fast_nights=_strings(rhythm.get("fast_nights")),
         away=_strings(rhythm.get("away")),
         targets=targets,
+        carriers=carriers,
     )
 
 
@@ -418,6 +432,8 @@ def apply(expression: str) -> None:
         _apply_rhythm(document, parts, operator, value)
     elif parts[0] == "targets":
         _apply_target(document, parts, operator, value)
+    elif parts[0] == "carriers":
+        _apply_carrier(document, parts, operator, value)
     else:
         raise _refuse(
             "That isn't something kept about your household.",
@@ -670,6 +686,49 @@ def _apply_rhythm(
     if operator == "-=" and value in current:
         current.remove(value)
     rhythm[parts[1]] = current
+
+
+def _apply_carrier(
+    document: tomlkit.TOMLDocument, parts: list[str], operator: str, value: str
+) -> None:
+    """Record that a product carries an allergen, or that it no longer does.
+
+    Added to the spellings this package ships rather than replacing them: ours
+    are the ones true everywhere, hers are the ones true in her kitchen. Whether
+    ranch dressing contains tomato depends on which ranch dressing she buys, and
+    she is the only person who can answer that.
+
+    Args:
+        document: The Profile document.
+        parts: ``carriers.<allergy>``.
+        operator: ``+=`` or ``-=``.
+        value: The product, in her words.
+
+    Raises:
+        PaprikaError: On a bad path or a whole-value write.
+    """
+    if len(parts) != 2:
+        raise _refuse(
+            "Carriers are kept per allergy — say which one.",
+            f"bad carrier path {'.'.join(parts)!r}",
+        )
+    if operator == "=":
+        raise _refuse(
+            "That's a list, so it's added to or taken from rather than replaced.",
+            "whole-value write to carriers",
+        )
+    table = document.get("carriers")
+    if not isinstance(table, dict):
+        table = tomlkit.table(is_super_table=True)
+        document["carriers"] = table
+    allergy = allergens.normalise(parts[1]) or parts[1]
+    wanted = " ".join(value.strip().casefold().split())
+    current = _list_at(table, allergy)
+    if operator == "+=" and wanted not in current:
+        current.append(wanted)
+    if operator == "-=" and wanted in current:
+        current.remove(wanted)
+    table[allergy] = current
 
 
 def _apply_target(

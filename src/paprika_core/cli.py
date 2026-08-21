@@ -528,9 +528,19 @@ def recipe_check(
         by_term: dict[str, tuple[str, ...]] = {}
         for name in wanted:
             spellings, alone = allergens.spellings_for(name)
+            # What she has taught it carries this — ketchup for tomatoes, and
+            # whichever ranch dressing she buys if hers has tomato in it. Added
+            # to ours, never replacing them.
+            taught = read.carriers.get(name, ())
+            spellings = tuple(spellings) + tuple(
+                c for c in taught if c not in spellings
+            )
             by_term[name] = spellings
             searched += [s for s in spellings if s not in searched]
-            if alone:
+            # Teaching it a carrier means it is no longer searching by her word
+            # alone, and saying otherwise would train her to discount a flag
+            # that is doing real work.
+            if alone and not taught:
                 literal_only.append(name)
 
         found: list[dict[str, Any]] = []
@@ -1809,6 +1819,9 @@ def profile_show() -> None:
             "fast_nights": list(read.fast_nights),
             "away": list(read.away),
             "targets": dict(read.targets),
+            # What she has taught it carries an allergen. Reported so a skill
+            # can see what is already known and not offer to teach it again.
+            "carriers": {name: list(what) for name, what in read.carriers.items()},
         }
         return succeeded(attempted, data=data)
 

@@ -847,3 +847,48 @@ def test_the_judgement_says_what_a_literal_only_clean_result_means() -> None:
     # tomato were both literal_only on a real library and behaved nothing alike.
     assert "whether the food hides inside other products" in body
     assert "say which way you answered" in body
+
+
+def test_the_judgement_offers_to_learn_a_carrier_it_missed() -> None:
+    """Otherwise the backstop stands still while the reading keeps finding things."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "carriers.tomatoes+=ketchup" in body
+    assert "Offer, never assume" in body
+    # And the cost is disclosed at the point of offering, not discovered later.
+    assert "including the ones made with a brand that has no tomato in it" in body
+
+
+def test_the_fence_carries_both_directions_of_a_standing_fact() -> None:
+    """The fence is the only thing every skill sees.
+
+    `cooking-judgement.md` is loaded by `plan-week` alone, so a rule that lives
+    only there is invisible to the skill she is actually talking to most of the
+    time — the hidden-allergen test that produced all of this ran through
+    `find-recipe`, which has never seen that file.
+    """
+    body = " ".join(
+        (REPO / "skills" / "using-paprika" / "SKILL.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "paprika recipe check" in body
+    assert "cannot know ketchup is tomatoes" in body
+    assert "A standing fact she volunteers is worth keeping" in body
+
+
+def test_the_judgement_takes_a_fact_she_offers_unprompted() -> None:
+    """Waiting to be asked loses what she already knows."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "when she tells you one unprompted, take it" in body
+    assert "Both directions matter and they fail differently" in body

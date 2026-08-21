@@ -28,6 +28,11 @@ Two things to hold on to whatever else is said:
 
 - **An allergy is never a preference and is never overridden.** If nobody has
   said what the household is allergic to, that is not the same as none — ask.
+  Read the recipes yourself, then `paprika recipe check` as a backstop — it
+  finds the word and cannot know ketchup is tomatoes.
+- **A standing fact she volunteers is worth keeping.** *"Ranch has tomato in
+  it."* *"Jacob's coming Wednesdays now."* Offer to record it, in her words, and
+  say what recording it will do.
 - **No number without knowing where it came from.** If you cannot say where a
   nutrition figure came from, do not produce one. `/paprika:nutrition` is the
   only thing that can answer honestly.

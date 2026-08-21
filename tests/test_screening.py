@@ -197,3 +197,82 @@ def test_peanut_butter_is_not_a_dairy_hit(signed_in: Path, seeded: FakePaprika) 
     data = _found(seeded, "--for", "milk")
 
     assert data["found"] == [], data["found"]
+
+
+# --- What she knows carries it -----------------------------------------------
+#
+# #104. "Did you know many ranch dressings have tomatoes?" No, and no shipped
+# table ever would — it depends which ranch dressing she buys.
+
+
+def test_a_carrier_she_recorded_is_searched_for(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """The case that beat the tool: a cup of ketchup, invisible to `tomatoes`."""
+    uid = next(iter(seeded.recipes))
+    seeded.recipes[uid]["ingredients"] = "3 cups ketchup\n1 lb beef"
+    runner.invoke(app, ["sync"])
+    runner.invoke(app, ["write", "profile", "set", "carriers.tomatoes+=ketchup"])
+
+    data = _found(seeded, "--for", "tomatoes")
+
+    assert data["found"], data
+    assert "ketchup" in data["searched"]
+
+
+def test_hers_are_added_to_ours_rather_than_replacing_them(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """Ours are true everywhere; hers are true in her kitchen. Both, always."""
+    uid = next(iter(seeded.recipes))
+    seeded.recipes[uid]["ingredients"] = "200ml double cream"
+    runner.invoke(app, ["sync"])
+    runner.invoke(app, ["write", "profile", "set", "carriers.milk+=ranch"])
+
+    data = _found(seeded, "--for", "milk")
+
+    assert "ranch" in data["searched"]
+    # The shipped spellings are still there.
+    assert "cream" in data["searched"]
+    assert data["found"]
+
+
+def test_an_allergy_with_carriers_is_no_longer_only_its_own_word(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """`literal_only` has to stay truthful or it means nothing.
+
+    Reporting an allergy as searched-by-name-alone when she has taught it four
+    carriers understates the check and, worse, trains her to discount a flag
+    that is doing real work.
+    """
+    runner.invoke(app, ["sync"])
+    before = _found(seeded, "--for", "tomatoes")
+    assert before["literal_only"] == ["tomatoes"]
+
+    runner.invoke(app, ["write", "profile", "set", "carriers.tomatoes+=ketchup"])
+
+    assert _found(seeded, "--for", "tomatoes")["literal_only"] == []
+
+
+def test_a_carrier_can_be_taken_back_out(paprika_home: Path) -> None:
+    """She may have been wrong, or changed brand. Nothing here is permanent."""
+    from paprika_core import profile
+
+    profile.apply("carriers.tomatoes+=ranch")
+    assert profile.read().carriers["tomatoes"] == ("ranch",)
+
+    profile.apply("carriers.tomatoes-=ranch")
+
+    assert profile.read().carriers.get("tomatoes", ()) == ()
+
+
+def test_what_she_has_taught_it_is_visible(
+    signed_in: Path, seeded: FakePaprika
+) -> None:
+    """So a skill can see what is known and not offer to teach it twice."""
+    runner.invoke(app, ["write", "profile", "set", "carriers.tomatoes+=ketchup"])
+
+    shown = json.loads(runner.invoke(app, ["profile", "show"]).stdout)["data"]
+
+    assert shown["carriers"] == {"tomatoes": ["ketchup"]}
