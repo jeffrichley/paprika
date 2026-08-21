@@ -65,3 +65,34 @@ jobs:
 
       - name: Audit locked dependencies
         run: uvx --from rust-just just audit
+
+  version:
+    # Claude Code installs a plugin into a directory named by its version and
+    # will not replace one it already holds. A change to what ships that does
+    # not move the number is a change nobody receives — silently, with no error
+    # anywhere. Four merged changes went out that way before anyone noticed.
+    name: shipped changes move the version
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check the version moved
+        run: |
+          base="origin/${{ github.base_ref }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          ships=$(echo "$changed" | grep -E '^(src/|skills/|agents/|hooks/)' || true)
+          if [ -z "$ships" ]; then
+            echo "Nothing that ships changed. No bump needed."
+            exit 0
+          fi
+          echo "These ship:"; echo "$ships"
+          was=$(git show "$base:.claude-plugin/plugin.json" | grep -o '"version": "[^"]*"' | head -1)
+          now=$(grep -o '"version": "[^"]*"' .claude-plugin/plugin.json | head -1)
+          if [ "$was" = "$now" ]; then
+            echo "::error::$now is unchanged, but files that ship were modified."
+            echo "Run: uv run cz bump --yes"
+            exit 1
+          fi
+          echo "Version moved: $was -> $now"
