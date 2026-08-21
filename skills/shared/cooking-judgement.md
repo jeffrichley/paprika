@@ -139,12 +139,29 @@ that, because it depends which ranch dressing she buys.
 
 **And when she tells you one unprompted, take it.** *"Ranch dressing has tomato
 in it."* *"Most stock cubes have gluten."* That is her reading a label you will
-never see, and it is worth more than anything shipped here. Record it the same
+never see, and it is worth more than anything shipped here.
+
+That is not a nicety. Measured live: two careful readings of the same
+thirty-six recipes both passed `Parmesan Chicken Strips` as clean. Her own
+`ranch` carrier caught it — a dip option listing Hidden Valley — and neither
+reading had looked at that line. **The one carrier that came from the person who
+actually reads labels found the recipe both readings missed.**
+
+Note what it does and does not claim. A carrier says *look at this*, not *this
+contains tomato*: whether that bottle has any in it needs the label read, and
+that is hers to do. Say it that way when you report one. Record it the same
 way, confirm what you wrote, and say what it will now catch.
 
 Both directions matter and they fail differently. Waiting to be asked loses what
 she already knows; recording without asking puts words in her Profile she did
 not say.
+
+**A lot of hits is not the same as a broken check.** On one real library a milk
+check flags four recipes in five — and that library is built on cheese, cream,
+butter and yogurt, so the number is largely true. Before dismissing a wide
+result as noise, look at what is driving it. Someone allergic to dairy really
+cannot eat most of that library, and softening the answer to make it look more
+useful would be the worst thing you could do with it.
 
 **Offer, never assume.** Her Profile holds things she said. And say the cost
 plainly when you offer: a carrier is a word like any other, so recording `ranch`

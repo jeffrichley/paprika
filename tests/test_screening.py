@@ -184,11 +184,14 @@ def test_every_hit_says_whose_allergy_it_is(
 
 
 def test_peanut_butter_is_not_a_dairy_hit(signed_in: Path, seeded: FakePaprika) -> None:
-    """Found live: 21 recipes matched `milk` only through peanut butter.
+    """Peanut butter is not butter, and a dairy check must not say it is.
 
-    The cost of a false positive is not the false positive. It is that a check
-    which cries wolf teaches the person reading it to skim, and a skimmed
-    backstop is not a backstop.
+    This docstring first cited 21 recipes in a real library. That number was a
+    measurement artifact — it counted recipes *containing* a peanut-butter
+    phrase rather than recipes whose only match was one — and the true class in
+    that library is about two. The behaviour is worth pinning either way: one
+    recipe wrongly called dairy is one a milk-allergic cook learns to discount
+    the check over.
     """
     uid = next(iter(seeded.recipes))
     seeded.recipes[uid]["ingredients"] = "2 tbsp powdered peanut butter\n1 apple"

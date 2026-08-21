@@ -892,3 +892,29 @@ def test_the_judgement_takes_a_fact_she_offers_unprompted() -> None:
 
     assert "when she tells you one unprompted, take it" in body
     assert "Both directions matter and they fail differently" in body
+
+
+def test_the_judgement_says_a_carrier_points_rather_than_concludes() -> None:
+    """A carrier says *look at this*, not *this contains tomato*.
+
+    Whether a given bottle of ranch has any in it needs the label read, and
+    overstating that would make a pointer into a verdict.
+    """
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "A carrier says *look at this*, not *this contains tomato*" in body
+
+
+def test_the_judgement_says_a_wide_result_may_be_true() -> None:
+    """Softening a correct answer to make it look useful is the worst option."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "A lot of hits is not the same as a broken check" in body

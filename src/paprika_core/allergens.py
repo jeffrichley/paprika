@@ -157,13 +157,22 @@ def spellings_for(name: str) -> tuple[tuple[str, ...], bool]:
 
 
 #: Words that make a match mean the opposite of what it looks like. "Peanut
-#: butter" is not butter; "coconut milk" is not milk. Found live: 21 recipes in
-#: one library matched `milk` through peanut butter alone.
+#: butter" is not butter; "coconut milk" is not milk.
 #:
-#: The cost of a false positive is not the false positive. It is that a check
-#: which cries wolf teaches whoever reads it to skim, and a skimmed backstop is
-#: not a backstop. So this list exists, and it is deliberately short — every
-#: entry here is a hole, and a long one would be a sieve.
+#: **Kept because the class is real, not because it is large.** It was first
+#: reported as 21 recipes in one library and re-measured as 2: the first count
+#: selected recipes *containing* a peanut-butter phrase anywhere rather than
+#: recipes whose only match was one, and most of those had genuine dairy in them
+#: as well. The session that gave the number found the error and said so.
+#:
+#: The reasoning for having this at all still holds — a check that cries wolf
+#: teaches whoever reads it to skim, and a skimmed backstop is not a backstop.
+#: It is simply not evidenced by that library, and a justification resting on
+#: arithmetic nobody rechecked is the kind that survives long after it stops
+#: being true.
+#:
+#: Deliberately short. Every entry here is a hole, and a long list would be a
+#: sieve.
 BORROWED: dict[str, tuple[str, ...]] = {
     "butter": ("peanut", "apple", "cocoa", "shea", "almond", "cashew", "nut"),
     "milk": ("coconut", "almond", "soy", "soya", "oat", "rice"),
