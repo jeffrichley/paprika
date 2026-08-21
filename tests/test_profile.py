@@ -18,6 +18,7 @@ on the strength of a question nobody asked.
 
 from __future__ import annotations
 
+import datetime as dt
 from pathlib import Path
 
 import pytest
@@ -68,16 +69,27 @@ def test_an_allergy_is_recorded_in_a_form_the_filter_can_act_on(
     assert profile.read().allergies == ("peanuts",)
 
 
-def test_an_allergy_we_cannot_check_for_is_refused_out_loud(
+def test_an_allergy_we_have_no_spelling_for_is_kept_anyway(
     paprika_home: Path,
 ) -> None:
-    """Recording it as matchable when it is not is how a hollow answer looks safe."""
-    with pytest.raises(PaprikaError) as caught:
-        profile.apply("allergies+=nightshades")
+    """This test used to assert the opposite, and the opposite was the bug.
 
-    assert caught.value.code is Code.REFUSED_LOCALLY
-    assert "nightshades" in caught.value.message
-    assert profile.read().allergies == ()
+    It read: *"Recording it as matchable when it is not is how a hollow answer
+    looks safe."* The belief was that an unrecognised allergy stored beside
+    recognised ones would look checked while going unchecked. The premise was
+    false — **nothing is checked mechanically**. `normalise` has one caller,
+    this write, and no code anywhere reads allergies to reject a recipe. All
+    screening is a skill reading the primer and applying cooking judgement, and
+    that treats every word alike.
+
+    What the refusal actually produced is in #93: a real allergy pushed into
+    `dislikes`, which is the field that *can* be traded against, and a household
+    that could never answer the allergy question and so read as having none.
+    """
+    profile.apply("allergies+=nightshades")
+
+    assert profile.read().allergies == ("nightshades",)
+    assert profile.read().allergies_answered
 
 
 def test_dislikes_are_free_text_and_per_person(paprika_home: Path) -> None:
@@ -279,20 +291,93 @@ def test_saying_there_are_no_allergies_is_an_answer(paprika_home: Path) -> None:
     assert data["allergies"] == []
 
 
-def test_an_unmatchable_allergy_is_refused_without_a_traceback(
+def test_an_allergy_with_no_name_at_all_is_refused_without_a_traceback(
     paprika_home: Path,
 ) -> None:
+    """The only refusal left on this path, and it is about blankness.
+
+    Was: an allergy we had no spelling for. That refusal is gone with #93.
+    """
     from typer.testing import CliRunner
 
     from paprika_core.cli import app
     from tests.test_cli import envelope_of
 
     runner = CliRunner()
-    result = runner.invoke(app, ["write", "profile", "set", "allergies+=nightshades"])
+    result = runner.invoke(app, ["write", "profile", "set", "allergies+=   "])
 
     envelope = envelope_of(result.stdout)
     assert result.exit_code == 1
     assert envelope["error"]["code"] == "refused_locally"
     assert "Traceback" not in result.stdout
-    # And it names the thing it could not take, so the refusal is actionable.
-    assert "nightshades" in envelope["error"]["message"]
+
+
+def test_an_unusual_allergy_reaches_the_session_by_name(paprika_home: Path) -> None:
+    """The whole point: the primer has to carry it, or nothing can act on it."""
+    from paprika_core import primer, setup
+
+    for step in setup.REQUIRED:
+        setup.record(step)
+    profile.apply("allergies+=tomatoes")
+
+    lines = primer.facts(dt.date(2026, 8, 21))
+
+    assert any("tomatoes" in line for line in lines), lines
+
+
+# --- An allergy the plugin cannot name is still an allergy -------------------
+#
+# #93. The list of fourteen gated what could be *recorded*, in service of a
+# filter that does not exist: `normalise` is called from one place, when
+# writing, and nothing ever reads allergies to reject a recipe. The screening is
+# the model reading the primer's allergy line and applying cooking judgement,
+# and that works the same for any word.
+
+
+def test_an_allergy_outside_the_common_list_is_recorded(paprika_home: Path) -> None:
+    """Monica is allergic to tomatoes. That is the case this exists for."""
+    profile.apply("allergies+=tomatoes")
+
+    assert profile.read().allergies == ("tomatoes",)
+
+
+def test_recording_one_settles_the_question(paprika_home: Path) -> None:
+    """The second-order failure, and the worse of the two.
+
+    While an unlistable allergy could not be recorded, a household holding one
+    could never reach an answered state — so every plan asked again, and the way
+    to stop being asked was to declare *no allergies*. That reads as a checked
+    fact and is a lie. Being unable to record the truth was steering her into
+    recording a falsehood.
+    """
+    before = profile.read()
+    assert not before.allergies_answered
+
+    profile.apply("allergies+=tomatoes")
+
+    assert profile.read().allergies_answered
+
+
+def test_a_spelling_we_know_still_lands_on_one_name(paprika_home: Path) -> None:
+    """Canonicalising is still worth doing — it just is not a gate.
+
+    Otherwise `dairy` and `milk` sit in the list as two separate allergies and
+    the household looks like it has more constraints than it has.
+    """
+    profile.apply("allergies+=dairy")
+    profile.apply("allergies+=milk")
+
+    assert profile.read().allergies == ("milk",)
+
+
+def test_what_she_typed_is_kept_when_we_do_not_know_it(paprika_home: Path) -> None:
+    """Her words, tidied only of spacing and case. Never reinterpreted."""
+    profile.apply("allergies+=  Nightshades  ")
+
+    assert profile.read().allergies == ("nightshades",)
+
+
+def test_an_allergy_is_still_never_per_person(paprika_home: Path) -> None:
+    """Unchanged by all of this: the cook only gets one pot."""
+    with pytest.raises(PaprikaError):
+        profile.apply("people.monica.allergies+=tomatoes")

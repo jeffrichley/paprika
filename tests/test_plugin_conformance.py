@@ -751,3 +751,28 @@ def test_the_manifest_does_not_name_the_standard_hooks_file() -> None:
     assert named is None or "hooks/hooks.json" not in str(named)
     # And the file it would have named is still there, still wired.
     assert (REPO / "hooks" / "hooks.json").is_file()
+
+
+def test_the_shared_judgement_says_no_command_screens_for_allergies() -> None:
+    """The screening is a skill reading a list, and nothing else. #93.
+
+    A reader who assumes a filter exists will trust one that does not. That
+    assumption is exactly what put the refusal in `allergens.py` — a gate on
+    what could be *recorded*, justified by matching that was never built.
+    """
+    body = (REPO / "skills" / "shared" / "cooking-judgement.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Nothing screens ingredients for you" in body
+    # And it names the hard part: an allergy is a food, a recipe lists products.
+    assert "passata" in body and "ketchup" in body
+
+
+def test_an_allergy_is_never_stored_as_a_dislike() -> None:
+    """The conversion #93 was forcing, forbidden where it would be reached for."""
+    body = (REPO / "skills" / "shared" / "cooking-judgement.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Dislikes are the opposite" in body

@@ -361,9 +361,8 @@ def _apply_allergy(
     canonical = allergens.normalise(value)
     if canonical is None:
         raise _refuse(
-            f"I can't reliably check for {value!r}, so I haven't recorded it as an "
-            "allergy.",
-            f"unmatchable allergen {value!r}",
+            "An allergy needs a name.",
+            "blank allergen",
         )
 
     current = _list_at(document, "allergies")
