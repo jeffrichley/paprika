@@ -172,6 +172,32 @@ class Profile:
         return tuple(found)
 
     @property
+    def everyone_s_allergies(self) -> dict[str, tuple[str, ...]]:
+        """Return every allergy known here, mapped to who has it.
+
+        For **screening**, which is a different question from planning. A plan
+        must not apply a guest's allergy to a night they are not at — that is
+        the whole of #96. A check reports what a recipe *names*; who is eating
+        decides what to do about it, and that decision belongs to the caller
+        who knows the night.
+
+        Found live: defaulting a check to `always_avoid` left it blind on a
+        household whose only two allergies belonged to guests, which is exactly
+        the household guests were built for.
+
+        Returns:
+            dict[str, tuple[str, ...]]: Allergy name to the people who have it,
+                family and guests together.
+        """
+        whose: dict[str, list[str]] = {}
+        for name in self.allergies:
+            whose.setdefault(name, []).append("household")
+        for who, person in list(self.people.items()) + list(self.guests.items()):
+            for name in person.allergies:
+                whose.setdefault(name, []).append(who)
+        return {name: tuple(people) for name, people in whose.items()}
+
+    @property
     def guests_to_ask_about(self) -> tuple[str, ...]:
         """Return the guests whose presence a week has to establish.
 

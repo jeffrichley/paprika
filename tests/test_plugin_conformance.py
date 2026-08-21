@@ -821,3 +821,29 @@ def test_the_judgement_says_what_a_severe_allergy_puts_in_scope() -> None:
     assert "traces matter" in body
     for thing in ("knife", "board", "oil", "serving spoon"):
         assert thing in body, thing
+
+
+def test_the_judgement_says_to_give_every_reason_a_dish_is_out() -> None:
+    """A correct exclusion can hide a second one that binds a different night."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "Say every reason a dish is out, not the first one" in body
+
+
+def test_the_judgement_says_what_a_literal_only_clean_result_means() -> None:
+    """`found: []` means two different things and the caller has to know which."""
+    body = " ".join(
+        (REPO / "skills" / "shared" / "cooking-judgement.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "literal_only" in body
+    # Not "this result is weak" — the flag cannot know that. Pineapple and
+    # tomato were both literal_only on a real library and behaved nothing alike.
+    assert "whether the food hides inside other products" in body
+    assert "say which way you answered" in body
