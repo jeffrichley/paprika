@@ -83,16 +83,22 @@ Then start a new session, so it picks the plugin up.
 ### Updating
 
 ```bash
-uv tool install --force git+https://github.com/jeffrichley/paprika
+uv tool upgrade paprika-plugin
 ```
 
 and `/plugin update paprika` in Claude Code. Then start a new session.
 
-`uv tool upgrade paprika-plugin` looks like the right command and is not. A git
-install pins the commit it resolved, so `upgrade` upgrades that version's
-*dependencies* and answers **"Nothing to upgrade"** however far the repository
-has moved — it is not wrong, it is answering a different question. Re-installing
-is what re-resolves the branch.
+**If it says `Nothing to upgrade` and you know there is a new version**, ask for
+it by name instead:
+
+```bash
+uv tool install --force git+https://github.com/jeffrichley/paprika
+```
+
+That re-resolves the branch rather than upgrading within what was already
+resolved, and it always works. `upgrade` usually works too — but it has answered
+`Nothing to upgrade` with four releases sitting on the branch, and the message
+is indistinguishable from being up to date.
 
 They're two separate installs — the command, and the plugin Claude Code loads —
 so updating one and not the other leaves them **out of step**. It says so when
