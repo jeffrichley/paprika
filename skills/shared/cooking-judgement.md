@@ -125,7 +125,19 @@ So the flag does not tell you the result is weak. It tells you to ask whether
 this particular food travels under other names — and to say which way you
 answered.
 
-**When you find a carrier the check could not, offer to record it.**
+**When you read a carrier that is not in `carriers` yet, offer to record it** —
+whether or not the check found this recipe.
+
+That condition is deliberately not *"when the check missed something"*. Found
+live: a recipe listing *"Barbecue sauce or chili sauce, if desired"* was
+correctly flagged, because `barbecue sauce` was recorded. `chili sauce` was
+sitting in the same line, unrecorded, and the moment went by — nothing felt
+missed, so nothing was offered. The next recipe naming chili sauce **without**
+barbecue sauce beside it goes straight past.
+
+So the trigger is the word you just read, checked against what `paprika profile
+show` says is already known. Not the outcome, which is exactly the case where
+nobody notices.
 
 ```bash
 paprika write profile set "carriers.tomatoes+=ketchup"
