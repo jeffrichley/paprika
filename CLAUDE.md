@@ -9,6 +9,9 @@ A Claude Code plugin.
 Issues live as GitHub issues in `jeffrichley/paprika`, managed with the `gh` CLI.
 See `docs/agents/issue-tracker.md`.
 
+Renovate (the central run in `jeffrichley/runners`) merges its own grouped
+non-major pull request once CI is green; majors and vulnerability fixes wait for Jeff.
+
 ### Triage labels
 
 The five canonical triage roles, using their default label strings.
